@@ -10,6 +10,7 @@ Dieser Ordner enthält die native SwiftUI-App, ein Widget für iPhone und WatchK
 - **Apple Watch:** eigenständiger Stunden-/Countdown-Bildschirm und rechteckige, Inline- und runde Komplikationen.
 - **Ohne FLUR-Server:** WebUntis- und Transitous-Daten werden direkt abgerufen. Das Passwort bleibt im iOS-Schlüsselbund; der Stundenplan liegt lokal in einer App Group und wird mit Watch Connectivity zur Uhr übertragen.
 - Der Watch-Datentransfer ist bewusst nur Teil des iPhone-App-Targets. Das iPhone-Widget verwendet dieselben gemeinsamen Daten, bindet aber `WatchConnectivity` nicht ein.
+- Das iPhone-Widget ist in Xcode explizit auf `iphoneos` und `iphonesimulator` beschränkt, damit macOS keine iPhone-spezifischen Widget-Familien baut.
 
 Die Widget-Uhr zählt dynamisch herunter. WidgetKit bestimmt selbst, wann es den angezeigten Stundenplan erneut lädt; Änderungen in WebUntis erscheinen daher nach dem nächsten App-Abruf und der nächsten Widget-Aktualisierung.
 
