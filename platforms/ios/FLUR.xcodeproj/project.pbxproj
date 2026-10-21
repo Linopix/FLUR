@@ -1,0 +1,345 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+		B30000000000000000000001 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000005 /* Assets.xcassets */; };
+		B30000000000000000000002 /* Assets.xcassets in Watch Resources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000005 /* Assets.xcassets */; };
+/* Begin PBXBuildFile section */
+		B10000000000000000000001 /* FLURShared.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000001 /* FLURShared.swift */; };
+		B10000000000000000000002 /* FLURWidgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000002 /* FLURWidgets.swift */; };
+		B10000000000000000000003 /* FLURShared.swift in Widget Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000001 /* FLURShared.swift */; };
+		B10000000000000000000004 /* FLURWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000003 /* FLURWatchApp.swift */; };
+		B10000000000000000000005 /* FLURShared.swift in Watch Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000001 /* FLURShared.swift */; };
+		B10000000000000000000006 /* FLURWatchWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000004 /* FLURWatchWidget.swift */; };
+		B10000000000000000000007 /* FLURShared.swift in Watch Widget Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000001 /* FLURShared.swift */; };
+		B10000000000000000000008 /* FLURWidget.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = B20000000000000000000007 /* FLURWidget.appex */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		B10000000000000000000009 /* FLURWatchWidget.appex in Embed Watch Extensions */ = {isa = PBXBuildFile; fileRef = B20000000000000000000009 /* FLURWatchWidget.appex */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		B1000000000000000000000A /* FLURWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = B20000000000000000000008 /* FLURWatch.app */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+
+		A10000000000000000000001 /* FLURApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000001 /* FLURApp.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		A20000000000000000000001 /* FLURApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FLURApp.swift; sourceTree = "<group>"; };
+		A20000000000000000000002 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A20000000000000000000003 /* FLUR.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FLUR.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		B20000000000000000000001 /* FLURShared.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FLURShared.swift; sourceTree = "<group>"; };
+		B20000000000000000000002 /* FLURWidgets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FLURWidgets.swift; sourceTree = "<group>"; };
+		B20000000000000000000003 /* FLURWatchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FLURWatchApp.swift; sourceTree = "<group>"; };
+		B20000000000000000000004 /* FLURWatchWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FLURWatchWidget.swift; sourceTree = "<group>"; };
+		B20000000000000000000005 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		B20000000000000000000006 /* FLURWidget-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "FLURWidget-Info.plist"; sourceTree = "<group>"; };
+		B20000000000000000000007 /* FLURWidget.appex */ = {isa = PBXFileReference; explicitFileType = wrapper.app-extension; includeInIndex = 0; path = FLURWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		B20000000000000000000008 /* FLURWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FLURWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		B20000000000000000000009 /* FLURWatchWidget.appex */ = {isa = PBXFileReference; explicitFileType = wrapper.app-extension; includeInIndex = 0; path = FLURWatchWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		A30000000000000000000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		A40000000000000000000001 = {
+			isa = PBXGroup;
+			children = (
+				A40000000000000000000002 /* . */,
+				A40000000000000000000003 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		A40000000000000000000002 /* . */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000001 /* FLURApp.swift */,
+				B20000000000000000000001 /* FLURShared.swift */,
+				B20000000000000000000002 /* FLURWidgets.swift */,
+				B20000000000000000000003 /* FLURWatchApp.swift */,
+				B20000000000000000000004 /* FLURWatchWidget.swift */,
+				B20000000000000000000005 /* Assets.xcassets */,
+				A20000000000000000000002 /* Info.plist */,
+				B20000000000000000000006 /* FLURWidget-Info.plist */,
+			);
+			path = .;
+			sourceTree = "<group>";
+		};
+		A40000000000000000000003 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000003 /* FLUR.app */,
+				B20000000000000000000007 /* FLURWidget.appex */,
+				B20000000000000000000008 /* FLURWatch.app */,
+				B20000000000000000000009 /* FLURWatchWidget.appex */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		A50000000000000000000001 /* FLUR */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A90000000000000000000001 /* Build configuration list for PBXNativeTarget "FLUR" */;
+			buildPhases = (
+				A30000000000000000000001 /* Frameworks */,
+				A60000000000000000000001 /* Sources */,
+				A60000000000000000000002 /* Resources */,
+				B60000000000000000000001 /* Embed App Extensions */,
+				B60000000000000000000002 /* Embed Watch Content */,
+			);
+			buildRules = ();
+			dependencies = (
+				B70000000000000000000001 /* PBXTargetDependency */,
+				B70000000000000000000002 /* PBXTargetDependency */,
+			);
+			name = FLUR;
+			productName = FLUR;
+			productReference = A20000000000000000000003 /* FLUR.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+
+/* FLUR Widget and Watch targets */
+		B50000000000000000000001 /* FLURWidget */ = {isa = PBXNativeTarget; buildConfigurationList = B90000000000000000000001; buildPhases = (B60000000000000000000003, B60000000000000000000004, ); buildRules = (); dependencies = (); name = FLURWidget; productName = FLURWidget; productReference = B20000000000000000000007; productType = "com.apple.product-type.app-extension"; };
+		B50000000000000000000002 /* FLURWatch */ = {isa = PBXNativeTarget; buildConfigurationList = B90000000000000000000002; buildPhases = (B60000000000000000000005, B60000000000000000000006, B60000000000000000000007, ); buildRules = (); dependencies = (B70000000000000000000003, ); name = FLURWatch; productName = FLURWatch; productReference = B20000000000000000000008; productType = "com.apple.product-type.application"; };
+		B50000000000000000000003 /* FLURWatchWidget */ = {isa = PBXNativeTarget; buildConfigurationList = B90000000000000000000003; buildPhases = (B60000000000000000000008, B60000000000000000000009, ); buildRules = (); dependencies = (); name = FLURWatchWidget; productName = FLURWatchWidget; productReference = B20000000000000000000009; productType = "com.apple.product-type.app-extension"; };
+		B60000000000000000000001 /* Embed App Extensions */ = {isa = PBXCopyFilesBuildPhase; buildActionMask = 2147483647; dstPath = ""; dstSubfolderSpec = 13; files = (B10000000000000000000008, ); name = "Embed App Extensions"; runOnlyForDeploymentPostprocessing = 0; };
+		B60000000000000000000002 /* Embed Watch Content */ = {isa = PBXCopyFilesBuildPhase; buildActionMask = 2147483647; dstPath = ""; dstSubfolderSpec = 16; files = (B1000000000000000000000A, ); name = "Embed Watch Content"; runOnlyForDeploymentPostprocessing = 0; };
+		B60000000000000000000003 /* FLURWidget Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (B10000000000000000000002, B10000000000000000000003, ); runOnlyForDeploymentPostprocessing = 0; };
+		B60000000000000000000004 /* FLURWidget Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		B60000000000000000000005 /* FLURWatch Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (B10000000000000000000004, B10000000000000000000005, ); runOnlyForDeploymentPostprocessing = 0; };
+		B60000000000000000000006 /* FLURWatch Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (B30000000000000000000002, ); runOnlyForDeploymentPostprocessing = 0; };
+		B60000000000000000000007 /* Embed Watch Extensions */ = {isa = PBXCopyFilesBuildPhase; buildActionMask = 2147483647; dstPath = ""; dstSubfolderSpec = 13; files = (B10000000000000000000009, ); name = "Embed Watch Extensions"; runOnlyForDeploymentPostprocessing = 0; };
+		B60000000000000000000008 /* FLURWatchWidget Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (B10000000000000000000006, B10000000000000000000007, ); runOnlyForDeploymentPostprocessing = 0; };
+		B60000000000000000000009 /* FLURWatchWidget Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		B70000000000000000000001 /* PBXTargetDependency */ = {isa = PBXTargetDependency; target = B50000000000000000000001; targetProxy = B80000000000000000000001; };
+		B70000000000000000000002 /* PBXTargetDependency */ = {isa = PBXTargetDependency; target = B50000000000000000000002; targetProxy = B80000000000000000000002; };
+		B70000000000000000000003 /* PBXTargetDependency */ = {isa = PBXTargetDependency; target = B50000000000000000000003; targetProxy = B80000000000000000000003; };
+		B80000000000000000000001 = {isa = PBXContainerItemProxy; containerPortal = A70000000000000000000001; proxyType = 1; remoteGlobalIDString = B50000000000000000000001; remoteInfo = FLURWidget; };
+		B80000000000000000000002 = {isa = PBXContainerItemProxy; containerPortal = A70000000000000000000001; proxyType = 1; remoteGlobalIDString = B50000000000000000000002; remoteInfo = FLURWatch; };
+		B80000000000000000000003 = {isa = PBXContainerItemProxy; containerPortal = A70000000000000000000001; proxyType = 1; remoteGlobalIDString = B50000000000000000000003; remoteInfo = FLURWatchWidget; };
+		B90000000000000000000001 = {isa = XCConfigurationList; buildConfigurations = (BA0000000000000000000001, BA0000000000000000000002, ); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		B90000000000000000000002 = {isa = XCConfigurationList; buildConfigurations = (BA0000000000000000000003, BA0000000000000000000004, ); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		B90000000000000000000003 = {isa = XCConfigurationList; buildConfigurations = (BA0000000000000000000005, BA0000000000000000000006, ); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		BA0000000000000000000001 = {isa = XCBuildConfiguration; name = Debug; buildSettings = {CODE_SIGN_ENTITLEMENTS = FLURApp.entitlements; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 1; GENERATE_INFOPLIST_FILE = YES; INFOPLIST_KEY_CFBundleDisplayName = FLURWidget; INFOPLIST_KEY_NSExtension_NSExtensionPointIdentifier = com.apple.widgetkit-extension; IPHONEOS_DEPLOYMENT_TARGET = 17.0; PRODUCT_BUNDLE_IDENTIFIER = de.linopix.flur.widget; PRODUCT_NAME = "$(TARGET_NAME)"; SKIP_INSTALL = YES; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2"; }; };
+		BA0000000000000000000002 = {isa = XCBuildConfiguration; name = Release; buildSettings = {CODE_SIGN_ENTITLEMENTS = FLURApp.entitlements; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 1; GENERATE_INFOPLIST_FILE = YES; INFOPLIST_KEY_CFBundleDisplayName = FLURWidget; INFOPLIST_KEY_NSExtension_NSExtensionPointIdentifier = com.apple.widgetkit-extension; IPHONEOS_DEPLOYMENT_TARGET = 17.0; PRODUCT_BUNDLE_IDENTIFIER = de.linopix.flur.widget; PRODUCT_NAME = "$(TARGET_NAME)"; SKIP_INSTALL = YES; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2"; }; };
+		BA0000000000000000000003 = {isa = XCBuildConfiguration; name = Debug; buildSettings = {CODE_SIGN_ENTITLEMENTS = FLURWatch.entitlements; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 1; GENERATE_INFOPLIST_FILE = YES; INFOPLIST_KEY_CFBundleDisplayName = "FLUR Watch"; INFOPLIST_KEY_WKCompanionAppBundleIdentifier = de.linopix.flur; INFOPLIST_KEY_WKWatchKitApp = YES; IPHONEOS_DEPLOYMENT_TARGET = 10.0; ASSETCATALOG_COMPILER_APPICON_NAME = WatchAppIcon; PRODUCT_BUNDLE_IDENTIFIER = de.linopix.flur.watchkitapp; PRODUCT_NAME = "$(TARGET_NAME)"; SKIP_INSTALL = YES; SWIFT_VERSION = 5.0; SUPPORTED_PLATFORMS = "watchos watchsimulator"; TARGETED_DEVICE_FAMILY = 4; WATCHOS_DEPLOYMENT_TARGET = 10.0; }; };
+		BA0000000000000000000004 = {isa = XCBuildConfiguration; name = Release; buildSettings = {CODE_SIGN_ENTITLEMENTS = FLURWatch.entitlements; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 1; GENERATE_INFOPLIST_FILE = YES; INFOPLIST_KEY_CFBundleDisplayName = "FLUR Watch"; INFOPLIST_KEY_WKCompanionAppBundleIdentifier = de.linopix.flur; INFOPLIST_KEY_WKWatchKitApp = YES; IPHONEOS_DEPLOYMENT_TARGET = 10.0; ASSETCATALOG_COMPILER_APPICON_NAME = WatchAppIcon; PRODUCT_BUNDLE_IDENTIFIER = de.linopix.flur.watchkitapp; PRODUCT_NAME = "$(TARGET_NAME)"; SKIP_INSTALL = YES; SWIFT_VERSION = 5.0; SUPPORTED_PLATFORMS = "watchos watchsimulator"; TARGETED_DEVICE_FAMILY = 4; WATCHOS_DEPLOYMENT_TARGET = 10.0; }; };
+		BA0000000000000000000005 = {isa = XCBuildConfiguration; name = Debug; buildSettings = {CODE_SIGN_ENTITLEMENTS = FLURWatch.entitlements; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 1; GENERATE_INFOPLIST_FILE = YES; INFOPLIST_KEY_CFBundleDisplayName = "FLUR Uhr Widget"; INFOPLIST_KEY_NSExtension_NSExtensionPointIdentifier = com.apple.widgetkit-extension; IPHONEOS_DEPLOYMENT_TARGET = 10.0; PRODUCT_BUNDLE_IDENTIFIER = de.linopix.flur.watchkitapp.widget; PRODUCT_NAME = "$(TARGET_NAME)"; SKIP_INSTALL = YES; SWIFT_VERSION = 5.0; SUPPORTED_PLATFORMS = "watchos watchsimulator"; TARGETED_DEVICE_FAMILY = 4; WATCHOS_DEPLOYMENT_TARGET = 10.0; }; };
+		BA0000000000000000000006 = {isa = XCBuildConfiguration; name = Release; buildSettings = {CODE_SIGN_ENTITLEMENTS = FLURWatch.entitlements; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 1; GENERATE_INFOPLIST_FILE = YES; INFOPLIST_KEY_CFBundleDisplayName = "FLUR Uhr Widget"; INFOPLIST_KEY_NSExtension_NSExtensionPointIdentifier = com.apple.widgetkit-extension; IPHONEOS_DEPLOYMENT_TARGET = 10.0; PRODUCT_BUNDLE_IDENTIFIER = de.linopix.flur.watchkitapp.widget; PRODUCT_NAME = "$(TARGET_NAME)"; SKIP_INSTALL = YES; SWIFT_VERSION = 5.0; SUPPORTED_PLATFORMS = "watchos watchsimulator"; TARGETED_DEVICE_FAMILY = 4; WATCHOS_DEPLOYMENT_TARGET = 10.0; }; };
+
+/* Begin PBXProject section */
+		A70000000000000000000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1600;
+				LastUpgradeCheck = 2710;
+				TargetAttributes = {
+					A50000000000000000000001 = { CreatedOnToolsVersion = 16.0; };
+					B50000000000000000000001 = { CreatedOnToolsVersion = 27.0; };
+					B50000000000000000000002 = { CreatedOnToolsVersion = 27.0; };
+					B50000000000000000000003 = { CreatedOnToolsVersion = 27.0; };
+				};
+			};
+			buildConfigurationList = A90000000000000000000002 /* Build configuration list for PBXProject "FLUR" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = A40000000000000000000001;
+			productRefGroup = A40000000000000000000003 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				A50000000000000000000001 /* FLUR */,
+				B50000000000000000000001 /* FLURWidget */,
+				B50000000000000000000002 /* FLURWatch */,
+				B50000000000000000000003 /* FLURWatchWidget */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		A60000000000000000000002 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B30000000000000000000001 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		A60000000000000000000001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10000000000000000000001 /* FLURApp.swift in Sources */,
+				B10000000000000000000001 /* FLURShared.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		A80000000000000000000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
+				CODE_SIGN_ENTITLEMENTS = FLURApp.entitlements;
+				PRODUCT_BUNDLE_IDENTIFIER = de.linopix.flur;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		A80000000000000000000002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
+				CODE_SIGN_ENTITLEMENTS = FLURApp.entitlements;
+				PRODUCT_BUNDLE_IDENTIFIER = de.linopix.flur;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		A80000000000000000000003 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = CTN7QCJM36;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+			};
+			name = Debug;
+		};
+		A80000000000000000000004 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = CTN7QCJM36;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A90000000000000000000001 /* Build configuration list for PBXNativeTarget "FLUR" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A80000000000000000000001 /* Debug */,
+				A80000000000000000000002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A90000000000000000000002 /* Build configuration list for PBXProject "FLUR" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A80000000000000000000003 /* Debug */,
+				A80000000000000000000004 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = A70000000000000000000001 /* Project object */;
+}
