@@ -70,4 +70,3 @@ enum SharedScheduleStore {
         return try? JSONDecoder().decode(SharedSnapshot.self, from: data)
     }
 }
-

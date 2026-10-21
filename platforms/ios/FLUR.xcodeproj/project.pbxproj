@@ -152,8 +152,8 @@
 				LastUpgradeCheck = 2710;
 				TargetAttributes = {
 					A50000000000000000000001 = { CreatedOnToolsVersion = 16.0; };
-					B50000000000000000000001 = { CreatedOnToolsVersion = 27.0; }; 
-					B50000000000000000000002 = { CreatedOnToolsVersion = 27.0; }; 
+					B50000000000000000000001 = { CreatedOnToolsVersion = 27.0; };
+					B50000000000000000000002 = { CreatedOnToolsVersion = 27.0; };
 					B50000000000000000000003 = { CreatedOnToolsVersion = 27.0; };
 				};
 			};
