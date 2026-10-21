@@ -19,6 +19,9 @@ const tripSchema = z.object({
   direction: z.enum(["hin", "heim"]),
   departAt: z.string().min(4).max(40),
   example: z.boolean(),
+  arriveBy: z.string().max(40).optional().default(""),
+  classEnd: z.string().max(40).optional().default(""),
+  focus: z.string().max(80).optional().default(""),
 });
 
 export const fetchServerProfile = createServerFn({ method: "GET" }).handler(async () => {

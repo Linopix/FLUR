@@ -1,6 +1,6 @@
 # FLUR
 
-Tagesübersicht für einen Bildschirm an der Wand. WebUntis-Stundenplan, der nächste Zug, der pünktlich ist, und der Heimweg inklusive Bus, Auto, Fahrrad oder zu Fuß von der Wohnung zum Bahnhof.
+Tagesübersicht für einen Bildschirm an der Wand. WebUntis-Stundenplan, der Hinweg knapp zur ersten Stunde, die nicht ausfällt, und der Heimweg mit dem Weg vom Schulhaus zur frühesten Zugverbindung.
 
 ## Docker
 
@@ -35,7 +35,7 @@ Ohne `flur.env` läuft die Tafel mit einem Beispieltag und einer live gerechnete
 
 Dieselben Felder gibt es in den Einstellungen auf dem Bildschirm. Was dort steht, gilt nur für dieses Gerät und ersetzt die Server-Variablen.
 
-Zugdaten kommen über [Transitous](https://transitous.org) (Fahrplandaten, unter anderem DB). Wege zu Fuß, mit dem Rad und mit dem Auto über den öffentlichen OSRM-Dienst. „Pünktlich“ heißt: keine Ausfallmeldung und höchstens zwei Minuten Abweichung vom Fahrplan.
+Zugdaten kommen über [Transitous](https://transitous.org) (Fahrplandaten, unter anderem DB). Der Hinweg sucht die späteste Verbindung, die noch vor der ersten nicht ausgefallenen Stunde ankommt, mit acht Minuten für den Weg vom Halt ins Schulhaus. Der Heimweg rechnet dieselben acht Minuten vom Schulhaus zur Haltestelle und nimmt danach die früheste Zugverbindung. Wege zu Fuß, mit dem Rad und mit dem Auto über den öffentlichen OSRM-Dienst. „Pünktlich“ heißt: keine Ausfallmeldung und höchstens zwei Minuten Abweichung vom Fahrplan.
 
 ## Schon da, später richtig
 

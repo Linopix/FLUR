@@ -1,22 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { demoBoard, demoTrip } from "@/lib/flur/demo";
 import { fetchBoard, fetchServerBoard, fetchServerProfile, fetchTrip } from "@/lib/flur/fns";
+import { outboundAim, returnAim } from "@/lib/flur/plan";
 import { clearSettings, emptySettings, hasUntis, loadSettings, saveSettings } from "@/lib/flur/settings";
-import { berlinParts } from "@/lib/flur/time";
 import type { DayBoard, Mode, ServerProfile, Settings, TripPlan } from "@/lib/flur/types";
 
 const BLANK_DAY: DayBoard = { source: "demo", iso: "", lessons: [] };
-
-function homeDeparture(today: DayBoard, now: Date): Date {
-  if (!today.iso || today.iso !== berlinParts(now).iso) return now;
-  const last = today.lessons
-    .filter((lesson) => lesson.status !== "cancelled")
-    .reduce<number>((end, lesson) => Math.max(end, lesson.endMin), -1);
-  if (last < 0) return now;
-  const delta = last + 10 - berlinParts(now).minutes;
-  if (delta <= 1) return now;
-  return new Date(now.getTime() + delta * 60_000);
-}
 
 export function useFlur() {
   const [settings, setSettingsState] = useState<Settings>(emptySettings);
@@ -139,12 +128,13 @@ export function useFlur() {
   const clockReady = now != null;
 
   useEffect(() => {
-    if (!hydrated || !clockReady) return;
+    if (!hydrated || !clockReady || !today.iso) return;
     let cancelled = false;
     const run = async () => {
       setTripLoading(true);
       const stamp = new Date();
-      const departHome = homeDeparture(today, stamp);
+      const out = outboundAim(today, tomorrow, stamp);
+      const back = returnAim(today, tomorrow, stamp);
       try {
         const [hinResult, heimResult] = await Promise.all([
           fetchTrip({
@@ -155,6 +145,9 @@ export function useFlur() {
               mode: route.mode,
               direction: "hin",
               departAt: stamp.toISOString(),
+              arriveBy: out?.arriveBy ?? "",
+              classEnd: "",
+              focus: out?.focus ?? "",
               example: exampleRoute,
             },
           }),
@@ -165,7 +158,10 @@ export function useFlur() {
               schoolStop: route.schoolStop,
               mode: route.mode,
               direction: "heim",
-              departAt: departHome.toISOString(),
+              departAt: back.departAt,
+              arriveBy: "",
+              classEnd: back.classEnd,
+              focus: back.focus,
               example: exampleRoute,
             },
           }),
@@ -193,7 +189,7 @@ export function useFlur() {
       cancelled = true;
       window.clearInterval(id);
     };
-  }, [clockReady, exampleRoute, hydrated, route.homeAddress, route.mode, route.schoolStop, route.station, today]);
+  }, [clockReady, exampleRoute, hydrated, route.homeAddress, route.mode, route.schoolStop, route.station, today, tomorrow]);
 
   const setSettings = useCallback((next: Settings) => {
     setSettingsState(next);

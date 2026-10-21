@@ -1,3 +1,11 @@
+import {
+  SCHOOL_BUFFER_MIN,
+  legIsCancelled,
+  pickEarliest,
+  pickTightest,
+  transitLegs,
+  type TimedItinerary,
+} from "@/lib/flur/plan";
 import { delayMinutes } from "@/lib/flur/time";
 import {
   EXAMPLE_PLACES,
@@ -33,10 +41,8 @@ type RawLeg = {
   to?: PlaceTime;
 };
 
-type RawItinerary = {
+type RawItinerary = TimedItinerary & {
   duration?: number;
-  startTime?: string;
-  endTime?: string;
   legs?: RawLeg[];
 };
 
@@ -104,21 +110,22 @@ async function routeAccess(
 async function transitPlan(
   from: Point,
   to: Point,
-  departAt: Date,
+  when: Date,
   modes: string,
+  options: { arriveBy: boolean; searchWindow: number },
 ): Promise<RawItinerary[]> {
   const url = new URL("https://api.transitous.org/api/v1/plan");
   url.searchParams.set("fromPlace", `${from.lat},${from.lon}`);
   url.searchParams.set("toPlace", `${to.lat},${to.lon}`);
-  url.searchParams.set("time", departAt.toISOString());
+  url.searchParams.set("time", when.toISOString());
   url.searchParams.set("numItineraries", "6");
   url.searchParams.set("transitModes", modes);
+  url.searchParams.set("arriveBy", options.arriveBy ? "true" : "false");
+  // false: bei Ankunft die späteste Abfahrt, bei Abfahrt die früheste Verbindung.
+  url.searchParams.set("timetableView", "false");
+  url.searchParams.set("searchWindow", String(options.searchWindow));
   const json = await getJson<{ itineraries?: RawItinerary[] }>(url.toString());
   return json.itineraries ?? [];
-}
-
-function transitOnly(itinerary: RawItinerary): RawLeg[] {
-  return (itinerary.legs ?? []).filter((leg) => leg.mode && leg.mode !== "WALK");
 }
 
 function legDelay(leg: RawLeg): number {
@@ -127,39 +134,15 @@ function legDelay(leg: RawLeg): number {
   return Math.max(dep, arr);
 }
 
-function legCancelled(leg: RawLeg): boolean {
-  return Boolean(leg.cancelled || leg.from?.cancelled || leg.to?.cancelled);
-}
-
 function itineraryPunctual(itinerary: RawItinerary): boolean {
-  const legs = transitOnly(itinerary);
+  const legs = transitLegs(itinerary);
   if (legs.length === 0) return false;
-  return legs.every((leg) => !legCancelled(leg) && legDelay(leg) <= PUNCTUAL_MAX);
-}
-
-function futureItineraries(rows: RawItinerary[], now: number): RawItinerary[] {
-  return rows
-    .filter((row) => row.startTime && Date.parse(row.startTime) >= now - 60_000)
-    .sort((a, b) => Date.parse(a.startTime ?? "") - Date.parse(b.startTime ?? ""));
-}
-
-function pickItinerary(rows: RawItinerary[], now: number, leaveOffsetMs: number) {
-  const upcoming = futureItineraries(rows, now);
-  const pool = upcoming.length > 0 ? upcoming : rows;
-  const punctual = pool.filter(itineraryPunctual);
-  const canLeave = (row: RawItinerary) => Date.parse(row.startTime ?? "") - leaveOffsetMs >= now - 30_000;
-  return (
-    punctual.find(canLeave) ??
-    pool.find((row) => transitOnly(row).length > 0 && canLeave(row) && !transitOnly(row).every(legCancelled)) ??
-    punctual[0] ??
-    pool.find((row) => transitOnly(row).length > 0) ??
-    null
-  );
+  return legs.every((leg) => !legIsCancelled(leg) && legDelay(leg as RawLeg) <= PUNCTUAL_MAX);
 }
 
 function displayName(raw: string, typed: string): string {
   const name = raw.trim();
-  if (!name) return typed;
+  if (!name || name === "START" || name === "END") return typed;
   const letters = name.replace(/[^A-Za-zÄÖÜäöüß]/g, "");
   if (letters && letters === letters.toUpperCase() && letters !== letters.toLowerCase()) return typed;
   return name;
@@ -170,11 +153,16 @@ function railTitle(leg: RawLeg): string {
   return name.replace(/\s*\([^)]*\)\s*/g, " ").replace(/\s+/g, " ").trim();
 }
 
-function toRailLeg(leg: RawLeg): TripLeg {
+function vehicleMode(raw: string | undefined): TripLeg["mode"] {
+  if (raw === "BUS" || raw === "TRAM" || raw === "SUBWAY" || raw === "COACH") return "bus";
+  return "rail";
+}
+
+function toTransitLeg(leg: RawLeg): TripLeg {
   const delay = legDelay(leg);
-  const cancelled = legCancelled(leg);
+  const cancelled = legIsCancelled(leg);
   return {
-    mode: "rail",
+    mode: vehicleMode(leg.mode),
     title: railTitle(leg),
     from: leg.from?.name || "Abfahrt",
     to: leg.headsign ? `${leg.to?.name || "Ziel"} · ${leg.headsign}` : leg.to?.name || "Ziel",
@@ -185,6 +173,36 @@ function toRailLeg(leg: RawLeg): TripLeg {
     cancelled,
     platform: leg.from?.description || (leg.from?.track && leg.from.track.length <= 4 ? leg.from.track : "") || "",
   };
+}
+
+function toWalkLeg(leg: RawLeg, fromLabel: string, toLabel: string): TripLeg | null {
+  if ((leg.duration ?? 0) < 90) return null;
+  const minutes = Math.max(1, Math.round((leg.duration ?? 0) / 60));
+  return {
+    mode: "walk",
+    title: `${minutes} Min zu Fuß`,
+    from: displayName(leg.from?.name || "", fromLabel),
+    to: displayName(leg.to?.name || "", toLabel),
+    departure: leg.from?.departure || leg.from?.scheduledDeparture || "",
+    arrival: leg.to?.arrival || leg.to?.scheduledArrival || "",
+    delayMin: 0,
+    punctual: true,
+    cancelled: false,
+    platform: "",
+  };
+}
+
+function pathLegs(itinerary: RawItinerary, fromLabel: string, toLabel: string): TripLeg[] {
+  const legs: TripLeg[] = [];
+  for (const leg of itinerary.legs ?? []) {
+    if (!leg.mode || leg.mode === "WALK") {
+      const walk = leg.mode === "WALK" ? toWalkLeg(leg, fromLabel, toLabel) : null;
+      if (walk) legs.push(walk);
+      continue;
+    }
+    legs.push(toTransitLeg(leg));
+  }
+  return legs;
 }
 
 function accessMode(mode: Mode): TripLeg["mode"] {
@@ -216,30 +234,62 @@ function accessLeg(
   };
 }
 
-async function accessMinutes(mode: Mode, home: Point, station: Point, departHint: Date) {
-  if (mode === "car") {
-    const route = await routeAccess("driving", home, station);
-    return { minutes: route.minutes, title: `Auto · ${route.km} km`, legs: null as RawItinerary | null };
+function transferPad(mode: Mode): number {
+  if (mode === "car") return 4;
+  if (mode === "bike") return 2;
+  if (mode === "bus") return 3;
+  return 1;
+}
+
+async function streetAccess(mode: Exclude<Mode, "bus">, from: Point, to: Point) {
+  const profile = mode === "car" ? "driving" : mode === "bike" ? "bike" : "foot";
+  const route = await routeAccess(profile, from, to);
+  const label = mode === "car" ? "Auto" : mode === "bike" ? "Fahrrad" : "Zu Fuß";
+  return { minutes: route.minutes, title: `${label} · ${route.km} km`, pad: transferPad(mode) };
+}
+
+async function approachLegs(
+  mode: Mode,
+  home: Point,
+  station: Point,
+  beAtStation: Date,
+  now: number,
+): Promise<TripLeg[]> {
+  if (mode !== "bus") {
+    const street = await streetAccess(mode, home, station);
+    const leave = new Date(beAtStation.getTime() - (street.minutes + street.pad) * 60_000);
+    return [accessLeg(mode, home.name, station.name, leave.toISOString(), street.minutes + street.pad, street.title)];
   }
-  if (mode === "bike") {
-    const route = await routeAccess("bike", home, station);
-    return { minutes: route.minutes, title: `Fahrrad · ${route.km} km`, legs: null };
+  const rows = await transitPlan(home, station, beAtStation, BUS, { arriveBy: true, searchWindow: 90 * 60 });
+  const chosen = pickTightest(rows, beAtStation.getTime(), now);
+  if (!chosen?.startTime || !chosen.endTime) {
+    throw new Error("Kein Bus, der rechtzeitig am Bahnhof ist. Fahrrad, Auto oder zu Fuß versuchen.");
   }
-  if (mode === "walk") {
-    const route = await routeAccess("foot", home, station);
-    return { minutes: route.minutes, title: `Zu Fuß · ${route.km} km`, legs: null };
+  return pathLegs(chosen, home.name, station.name);
+}
+
+async function leaveStationLegs(mode: Mode, station: Point, home: Point, atStation: Date): Promise<TripLeg[]> {
+  if (mode !== "bus") {
+    const street = await streetAccess(mode, station, home);
+    return [accessLeg(mode, station.name, home.name, atStation.toISOString(), street.minutes, street.title)];
   }
-  const rows = await transitPlan(home, station, departHint, BUS);
-  const chosen = pickItinerary(rows, Date.now(), 0);
-  if (!chosen || transitOnly(chosen).length === 0) {
-    throw new Error("Kein Bus zwischen Wohnung und Bahnhof. Fahrrad, Auto oder zu Fuß versuchen.");
+  const rows = await transitPlan(station, home, atStation, BUS, { arriveBy: false, searchWindow: 60 * 60 });
+  const chosen = pickEarliest(rows, atStation.getTime());
+  if (!chosen?.startTime || !chosen.endTime) {
+    throw new Error("Kein Bus vom Bahnhof nach Hause. Fahrrad, Auto oder zu Fuß versuchen.");
   }
-  const names = transitOnly(chosen)
-    .map((leg) => railTitle(leg))
-    .filter(Boolean)
-    .join(" + ");
-  const minutes = Math.max(1, Math.round((chosen.duration ?? 0) / 60));
-  return { minutes, title: names || "Bus", legs: chosen };
+  return pathLegs(chosen, station.name, home.name);
+}
+
+async function leadMinutes(mode: Mode, home: Point, station: Point, now: number): Promise<number> {
+  if (mode !== "bus") {
+    const street = await streetAccess(mode, home, station);
+    return street.minutes + street.pad;
+  }
+  const rows = await transitPlan(home, station, new Date(now), BUS, { arriveBy: false, searchWindow: 60 * 60 });
+  const chosen = pickEarliest(rows, now);
+  if (!chosen?.startTime || !chosen.endTime) return 20;
+  return Math.max(8, Math.round((Date.parse(chosen.endTime) - Date.parse(chosen.startTime)) / 60_000) + transferPad(mode));
 }
 
 function summarize(direction: "hin" | "heim", mode: Mode, punctual: boolean, rail: TripLeg | undefined): string {
@@ -250,6 +300,10 @@ function summarize(direction: "hin" | "heim", mode: Mode, punctual: boolean, rai
   return `${train} ${state}, danach ${way} nach Hause.`;
 }
 
+function firstRail(legs: TripLeg[]): TripLeg | undefined {
+  return legs.find((leg) => leg.mode === "rail");
+}
+
 export async function planTrip(input: {
   homeAddress: string;
   station: string;
@@ -258,16 +312,30 @@ export async function planTrip(input: {
   direction: "hin" | "heim";
   departAt: string;
   example: boolean;
+  arriveBy?: string;
+  classEnd?: string;
+  focus?: string;
 }): Promise<TripResult> {
-  const ownPlace =
-    Boolean(input.homeAddress.trim() || input.station.trim() || input.schoolStop.trim());
+  const arriveBy = input.arriveBy?.trim() ?? "";
+  const classEnd = input.classEnd?.trim() ?? "";
+  const focus = input.focus?.trim() ?? "";
+  const ownPlace = Boolean(input.homeAddress.trim() || input.station.trim() || input.schoolStop.trim());
   const homeAddress = input.homeAddress.trim() || (!ownPlace && input.example ? EXAMPLE_PLACES.homeAddress : "");
   const stationQuery = input.station.trim() || (!ownPlace && input.example ? EXAMPLE_PLACES.station : "");
   const schoolQuery = input.schoolStop.trim() || (!ownPlace && input.example ? EXAMPLE_PLACES.schoolStop : "");
   if (!homeAddress || !stationQuery || !schoolQuery) {
     return { ok: false, error: "Heimatadresse, Bahnhof und Schulhalt werden gebraucht." };
   }
-  const cacheKey = [homeAddress, stationQuery, schoolQuery, input.mode, input.direction, input.departAt.slice(0, 16)].join("|");
+  const cacheKey = [
+    homeAddress,
+    stationQuery,
+    schoolQuery,
+    input.mode,
+    input.direction,
+    input.departAt.slice(0, 16),
+    arriveBy.slice(0, 16),
+    classEnd.slice(0, 16),
+  ].join("|");
   const cached = planCache.get(cacheKey);
   if (cached && Date.now() - cached.at < 45_000) return { ok: true, trip: cached.trip };
 
@@ -277,72 +345,112 @@ export async function planTrip(input: {
       geocodeStop(stationQuery),
       geocodeStop(schoolQuery),
     ]);
-    const departAt = new Date(input.departAt);
-    const when = Number.isNaN(departAt.getTime()) ? new Date() : departAt;
     const now = Date.now();
 
     if (input.direction === "hin") {
-      const rough = await accessMinutes(input.mode, home, station, new Date(now));
-      const trains = await transitPlan(station, school, new Date(now + (rough.minutes + 4) * 60_000), RAIL);
-      const chosen = pickItinerary(trains, now, (rough.minutes + 5) * 60_000);
+      const deadlineMs = Date.parse(arriveBy);
+      const tight = Number.isFinite(deadlineMs) && deadlineMs > now + 4 * 60_000;
+      const lead = await leadMinutes(input.mode, home, station, now);
+      let chosen: RawItinerary | null = null;
+      let late = false;
+      if (tight) {
+        const rows = await transitPlan(station, school, new Date(deadlineMs), RAIL, {
+          arriveBy: true,
+          searchWindow: 4 * 60 * 60,
+        });
+        chosen = pickTightest(rows, deadlineMs, now + lead * 60_000);
+      }
+      if (!chosen?.startTime || !chosen.endTime) {
+        late = tight;
+        const from = new Date(now + lead * 60_000);
+        const rows = await transitPlan(station, school, from, RAIL, { arriveBy: false, searchWindow: 2 * 60 * 60 });
+        chosen = pickEarliest(rows, now + lead * 60_000);
+      }
       if (!chosen?.startTime || !chosen.endTime) {
         return { ok: false, error: "Keine Zugverbindung in den nächsten Stunden." };
       }
-      const leaveMs = Date.parse(chosen.startTime) - (rough.minutes + 5) * 60_000;
-      const railLegs = transitOnly(chosen).map(toRailLeg);
-      const firstRail = railLegs[0];
-      const access = accessLeg(
-        input.mode,
-        home.name,
-        station.name,
-        new Date(leaveMs).toISOString(),
-        rough.minutes,
-        rough.title,
+      const approach = await approachLegs(input.mode, home, station, new Date(chosen.startTime), now);
+      const ride = pathLegs(chosen, station.name, school.name);
+      const intoSchool = accessLeg(
+        "walk",
+        school.name,
+        "Schule",
+        chosen.endTime,
+        SCHOOL_BUFFER_MIN,
+        "Weg ins Schulhaus",
       );
+      const legs = [...approach, ...ride, intoSchool];
       const punctual = itineraryPunctual(chosen);
+      const slack = Number.isFinite(deadlineMs)
+        ? Math.round((deadlineMs - Date.parse(chosen.endTime)) / 60_000)
+        : 0;
+      const lesson = focus || "der ersten Stunde";
+      const note = late
+        ? `Zur ersten Stunde (${lesson}) reicht keine Verbindung mehr. Gezeigt wird die früheste ab jetzt.`
+        : tight
+          ? slack <= 2
+            ? `Knapp zur ersten Stunde, die nicht ausfällt (${lesson}), inklusive ${SCHOOL_BUFFER_MIN} Minuten ins Schulhaus.`
+            : `Knapp zur ersten Stunde, die nicht ausfällt (${lesson}). Mit dem Weg ins Schulhaus bist du etwa ${slack} Minuten vor dem Klingeln da.`
+          : punctual
+            ? "Nächste Verbindung, die höchstens zwei Minuten Verspätung hat."
+            : "Gerade keine pünktliche Verbindung. Gezeigt wird die nächste fahrende.";
       const trip: TripPlan = {
         source: "live",
         direction: "hin",
         mode: input.mode,
         punctual,
-        leaveAt: access.departure,
-        arriveAt: chosen.endTime,
-        headline: summarize("hin", input.mode, punctual, firstRail),
-        note: !ownPlace
-          ? "Beispielstrecke, live gerechnet. Eigene Adresse und Haltestellen stehen in den Einstellungen."
-          : punctual
-            ? "Nächste Verbindung, die höchstens zwei Minuten Verspätung hat."
-            : "Gerade keine pünktliche Verbindung. Gezeigt wird die nächste fahrende.",
+        leaveAt: approach[0]?.departure || chosen.startTime,
+        arriveAt: intoSchool.arrival,
+        headline: summarize("hin", input.mode, punctual, firstRail(ride)),
+        note: !ownPlace ? `Beispielstrecke, live gerechnet. ${note}` : note,
         places: { home: home.name, station: station.name, schoolStop: school.name },
-        legs: [access, ...railLegs],
+        legs,
       };
       planCache.set(cacheKey, { at: Date.now(), trip });
       return { ok: true, trip };
     }
 
-    const trains = await transitPlan(school, station, when, RAIL);
-    const chosen = pickItinerary(trains, when.getTime() - 60_000, 0);
+    const when = new Date(input.departAt);
+    const ready = Number.isNaN(when.getTime()) ? new Date() : when;
+    let rows = await transitPlan(school, station, ready, RAIL, { arriveBy: false, searchWindow: 2 * 60 * 60 });
+    let chosen = pickEarliest(rows, ready.getTime());
+    if (!chosen?.startTime && rows.some((row) => transitLegs(row).some(legIsCancelled))) {
+      const later = new Date(ready.getTime() + 20 * 60_000);
+      rows = await transitPlan(school, station, later, RAIL, { arriveBy: false, searchWindow: 2 * 60 * 60 });
+      chosen = pickEarliest(rows, ready.getTime());
+    }
     if (!chosen?.startTime || !chosen.endTime) {
       return { ok: false, error: "Keine Heimfahrt in den nächsten Stunden." };
     }
-    const after = await accessMinutes(input.mode, station, home, new Date(chosen.endTime));
-    const railLegs = transitOnly(chosen).map(toRailLeg);
-    const firstRail = railLegs[0];
-    const access = accessLeg(input.mode, station.name, home.name, chosen.endTime, after.minutes, after.title);
+    const ride = pathLegs(chosen, school.name, station.name);
+    const after = await leaveStationLegs(input.mode, station, home, new Date(chosen.endTime));
+    let legs = [...ride, ...after];
+    let leaveAt = chosen.startTime;
+    const classEndMs = Date.parse(classEnd);
+    if (Number.isFinite(classEndMs) && ready.getTime() > classEndMs + 30_000) {
+      const minutes = Math.max(1, Math.round((ready.getTime() - classEndMs) / 60_000));
+      const egress = accessLeg("walk", "Schule", school.name, new Date(classEndMs).toISOString(), minutes, "Weg zur Haltestelle");
+      legs = [egress, ...legs];
+      leaveAt = egress.departure;
+    }
     const punctual = itineraryPunctual(chosen);
+    const homeAt = after.at(-1)?.arrival || chosen.endTime;
+    const note = classEnd
+      ? `Frühste Zugverbindung, nachdem du in ${SCHOOL_BUFFER_MIN} Minuten vom Schulhaus an der Haltestelle bist${focus ? ` (${focus})` : ""}.`
+      : focus
+        ? `Schulschluss (${focus}) liegt hinter dir. Frühste Zugverbindung ab jetzt.`
+        : "Frühste Zugverbindung ab jetzt, plus der Weg vom Bahnhof nach Hause.";
     const trip: TripPlan = {
       source: "live",
       direction: "heim",
       mode: input.mode,
       punctual,
-      leaveAt: chosen.startTime,
-      arriveAt: access.arrival,
-      headline: summarize("heim", input.mode, punctual, firstRail),
-      note: !ownPlace
-        ? "Beispielstrecke, live gerechnet. Ankunft inklusive Weg vom Bahnhof nach Hause."
-        : "Ankunft ist Zug plus Weg vom Bahnhof bis zur Haustür.",
+      leaveAt,
+      arriveAt: homeAt,
+      headline: summarize("heim", input.mode, punctual, firstRail(ride)),
+      note: !ownPlace ? `Beispielstrecke, live gerechnet. ${note}` : note,
       places: { home: home.name, station: station.name, schoolStop: school.name },
-      legs: [...railLegs, access],
+      legs,
     };
     planCache.set(cacheKey, { at: Date.now(), trip });
     return { ok: true, trip };

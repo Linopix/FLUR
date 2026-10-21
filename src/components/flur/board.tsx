@@ -420,8 +420,8 @@ export function Board() {
               <h2 className="font-display text-4xl">{view === "hin" ? "Hinweg" : "Heimweg"}</h2>
               <p className="mt-2 max-w-xl text-pretty text-mist">
                 {view === "hin"
-                  ? "Zuerst der Weg von zu Hause zum Bahnhof, dann die nächste Verbindung, die pünktlich ist."
-                  : "Rückfahrt ab Schulschluss, plus der Weg vom Bahnhof bis nach Hause."}
+                  ? "So knapp wie möglich zur ersten Stunde, die nicht ausfällt. Danach noch der Weg ins Schulhaus."
+                  : "Erst der Weg vom Schulhaus zur Haltestelle, dann die früheste Zugverbindung."}
               </p>
             </div>
             <ModeSwitch mode={flur.route.mode} onChange={flur.setMode} />
