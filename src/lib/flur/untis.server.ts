@@ -79,6 +79,71 @@ export function normalizeUntisBase(input: string): string {
   return `${url.protocol}//${url.host}`;
 }
 
+type SchoolHit = {
+  server?: string;
+  loginName?: string;
+  displayName?: string;
+  schoolId?: number | string;
+};
+
+const schoolNames = new Map<string, { value: string; at: number }>();
+const SCHOOL_MS = 6 * 60 * 60 * 1000;
+
+function squash(value: string | undefined): string {
+  return (value ?? "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
+}
+
+/**
+ * Untis erwartet im Parameter `school` die interne Kennung (loginName), nicht den
+ * Anzeigenamen. Mit dem Anzeigenamen antwortet der Server mit 404. Wir fragen deshalb
+ * die Schulsuche und nehmen die Kennung. Schlägt die Suche fehl, bleibt die Eingabe.
+ */
+async function resolveSchoolName(base: string, input: string): Promise<string> {
+  const school = input.trim();
+  const host = new URL(base).host.toLowerCase();
+  const cacheKey = `${host}|${school.toLowerCase()}`;
+  const cached = schoolNames.get(cacheKey);
+  if (cached && Date.now() - cached.at < SCHOOL_MS) return cached.value;
+
+  const remember = (value: string) => {
+    schoolNames.set(cacheKey, { value, at: Date.now() });
+    return value;
+  };
+
+  try {
+    const response = await fetch("https://mobile.webuntis.com/ms/schoolquery2", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        "User-Agent": "FLUR/1.0",
+      },
+      body: JSON.stringify({
+        id: "flur",
+        method: "searchSchool",
+        params: [{ search: school }],
+        jsonrpc: "2.0",
+      }),
+      signal: AbortSignal.timeout(8_000),
+    });
+    if (!response.ok) return school;
+    const json = (await response.json()) as { result?: { schools?: SchoolHit[] } };
+    const hits = (json.result?.schools ?? []).filter((hit) => hit.loginName);
+    if (hits.length === 0) return school;
+
+    const wanted = squash(school);
+    const onServer = hits.filter((hit) => (hit.server ?? "").toLowerCase() === host);
+    const pool = onServer.length > 0 ? onServer : hits;
+    const match =
+      pool.find((hit) => squash(hit.loginName) === wanted) ??
+      pool.find((hit) => squash(hit.displayName) === wanted) ??
+      (onServer.length > 0 ? onServer[0] : pool.length === 1 ? pool[0] : undefined);
+    return match?.loginName ? remember(match.loginName) : school;
+  } catch {
+    return school;
+  }
+}
+
 async function rpc(
   base: string,
   school: string,
@@ -99,6 +164,11 @@ async function rpc(
     body: JSON.stringify({ id: "flur", method, params, jsonrpc: "2.0" }),
     signal: AbortSignal.timeout(12_000),
   });
+  if (response.status === 404) {
+    throw new Error(
+      "WebUntis kennt diese Schule nicht. Server und Schulname prüfen (am besten die Kennung aus der WebUntis-Adresse nach school= verwenden).",
+    );
+  }
   if (!response.ok) throw new Error(`WebUntis antwortet mit Status ${response.status}.`);
   const json = (await response.json()) as { result?: unknown; error?: { message?: string } };
   if (json.error) throw new Error(json.error.message || "WebUntis hat die Anfrage abgelehnt.");
@@ -178,7 +248,9 @@ async function resolveElement(
   }
   const match = (Array.isArray(rows) ? rows : []).find((row) => {
     const names = [row.name, row.longname, row.longName].map((part) => (part ?? "").toLowerCase());
-    return names.some((name) => name === needle || name.replace(/\s+/g, "") === needle.replace(/\s+/g, ""));
+    return names.some(
+      (name) => name === needle || name.replace(/\s+/g, "") === needle.replace(/\s+/g, ""),
+    );
   });
   if (!match?.id) {
     throw new Error(
@@ -217,7 +289,8 @@ function toLesson(
     endMin: untisTimeToMinutes(raw.endTime),
     subject: labelOf(raw.su, subjects) || "Unterricht",
     teacher,
-    originalTeacher: original && original !== teacher && original !== shortOf(raw.te) ? original : "",
+    originalTeacher:
+      original && original !== teacher && original !== shortOf(raw.te) ? original : "",
     room: labelOf(raw.ro, rooms) || shortOf(raw.ro),
     info: status === "cancelled" ? info || "entfällt" : info,
     status,
@@ -264,11 +337,13 @@ async function dayFor(
 
 export async function loadUntisBoard(creds: UntisCreds): Promise<BoardResult> {
   const base = normalizeUntisBase(creds.baseUrl);
-  const school = creds.school.trim();
-  if (!school || !creds.user.trim() || !creds.password) {
+  const typedSchool = creds.school.trim();
+  if (!typedSchool || !creds.user.trim() || !creds.password) {
     return { ok: false, error: "Schulname, Benutzer und Passwort werden gebraucht." };
   }
+  let school = typedSchool;
   try {
+    school = await resolveSchoolName(base, typedSchool);
     const session = await login({ ...creds, school }, base);
     const element = await resolveElement({ ...creds, school }, base, session);
     const [subjects, teachers, rooms] = await Promise.all([
@@ -287,7 +362,10 @@ export async function loadUntisBoard(creds: UntisCreds): Promise<BoardResult> {
     sessions.delete(sessionKey({ ...creds, baseUrl: base, school }));
     const message = error instanceof Error ? error.message : "WebUntis ist nicht erreichbar.";
     if (/auth|password|benutzer|login|user/i.test(message)) {
-      return { ok: false, error: "Anmeldung abgelehnt. Server, Schule, Benutzer und Passwort prüfen." };
+      return {
+        ok: false,
+        error: "Anmeldung abgelehnt. Server, Schule, Benutzer und Passwort prüfen.",
+      };
     }
     return { ok: false, error: message };
   }
@@ -319,7 +397,9 @@ export function routeFromEnv(): {
 } {
   const modeRaw = process.env.FLUR_MODE?.trim();
   const mode =
-    modeRaw === "bus" || modeRaw === "car" || modeRaw === "bike" || modeRaw === "walk" ? modeRaw : "";
+    modeRaw === "bus" || modeRaw === "car" || modeRaw === "bike" || modeRaw === "walk"
+      ? modeRaw
+      : "";
   return {
     home: process.env.FLUR_HOME?.trim() ?? "",
     station: process.env.FLUR_STATION?.trim() ?? "",
