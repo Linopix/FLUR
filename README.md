@@ -44,3 +44,16 @@ Zugdaten kommen über [Transitous](https://transitous.org) (Fahrplandaten, unter
 - **Apple Watch:** `/uhr` ist die Vorlage für ein Widget, noch keine Complication.
 
 Zugangsdaten nicht committen.
+
+## Native iOS-, Widget- und Watch-App
+
+Die native SwiftUI-App liegt in [`platforms/ios/`](platforms/ios/README.md). Sie ist eine eigenständige Ergänzung zur bestehenden Web-App und verändert weder deren Laufzeit noch deren Build. Web- und iOS-Version verwenden dieselben fachlichen Datenquellen, die native App ruft WebUntis und Transitous direkt vom iPhone ab und benötigt keinen FLUR-Server.
+
+Der native Projektordner enthält:
+
+- die iPhone-App mit den Bereichen **Aktuell**, **Wege** und **Mehr**;
+- ein iPhone-Widget für den aktuellen Termin bzw. den Countdown zur nächsten Abfahrt;
+- eine eigenständige Apple-Watch-App samt Watch-Widget/Komplikationen;
+- gemeinsame Datenmodelle und lokale Synchronisierung zwischen iPhone und Watch.
+
+**Wichtig für Entwickler:** Einrichtung, Targets, Bundle-IDs, App Group, Signing, Build und bekannte Einschränkungen sind in [`platforms/ios/README.md`](platforms/ios/README.md) dokumentiert. Zugangsdaten gehören nicht ins Repository. Der iOS-Code wird separat über einen Branch und Pull Request eingebracht, sodass Änderungen an der Web-App unabhängig bleiben.
