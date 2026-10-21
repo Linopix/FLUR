@@ -1,0 +1,11 @@
+node_modules
+dist
+.output
+.vercel
+.nitro
+*.log
+.env
+.env.*
+flur.env
+screenshots
+.DS_Store

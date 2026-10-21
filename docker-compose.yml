@@ -1,0 +1,46 @@
+services:
+  flur:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      TZ: ${TZ:-Europe/Berlin}
+      FLUR_WEBUNTIS_SERVER: ${FLUR_WEBUNTIS_SERVER:-}
+      FLUR_WEBUNTIS_SCHOOL: ${FLUR_WEBUNTIS_SCHOOL:-}
+      FLUR_WEBUNTIS_USER: ${FLUR_WEBUNTIS_USER:-}
+      FLUR_WEBUNTIS_PASSWORD: ${FLUR_WEBUNTIS_PASSWORD:-}
+      FLUR_WEBUNTIS_WHO: ${FLUR_WEBUNTIS_WHO:-student}
+      FLUR_WEBUNTIS_NAME: ${FLUR_WEBUNTIS_NAME:-}
+      FLUR_HOME: ${FLUR_HOME:-}
+      FLUR_STATION: ${FLUR_STATION:-}
+      FLUR_SCHOOL_STOP: ${FLUR_SCHOOL_STOP:-}
+      FLUR_MODE: ${FLUR_MODE:-bike}
+
+  # HDMI-Kiosk, nur mit laufendem X11 auf dem Gerät:
+  #   xhost +local:docker
+  #   docker compose --profile hdmi up -d
+  hdmi:
+    profiles: ["hdmi"]
+    image: zenika/alpine-chrome:latest
+    restart: unless-stopped
+    depends_on:
+      - flur
+    environment:
+      DISPLAY: ${DISPLAY:-:0}
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix
+    devices:
+      - /dev/dri:/dev/dri
+    group_add:
+      - video
+    ipc: host
+    command:
+      - --kiosk
+      - --no-sandbox
+      - --start-fullscreen
+      - --disable-infobars
+      - --noerrdialogs
+      - --disable-translate
+      - --check-for-update-interval=31536000
+      - http://flur:8080/

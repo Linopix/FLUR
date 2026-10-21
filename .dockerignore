@@ -1,0 +1,11 @@
+node_modules
+dist
+.git
+screenshots
+artifacts
+.grok/**
+!.grok/app-env.json
+*.log
+flur.env
+.env
+.env.*
