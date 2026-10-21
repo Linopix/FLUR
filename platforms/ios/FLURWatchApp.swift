@@ -48,6 +48,7 @@ private struct WatchCurrentView: View {
         if let next, let outbound, outbound > minute, outbound <= next.startMin { return outbound }
         if let next { return next.startMin }
         if isAfterSchool, let home, home > minute { return home }
+        if let first = snapshot?.tomorrow.first { return 1440 + first.startMin }
         return nil
     }
     private var outboundStop: SharedStop? {
@@ -60,8 +61,8 @@ private struct WatchCurrentView: View {
     }
     private var outbound: Int? { outboundStop?.departure.flatMap(parse) ?? outboundStop?.scheduledDeparture.flatMap(parse) }
     private var home: Int? { homeStop?.departure.flatMap(parse) ?? homeStop?.scheduledDeparture.flatMap(parse) }
-    private var title: String { active?.subject ?? next?.subject ?? (isAfterSchool ? "Heimweg" : "FLUR") }
-    private var label: String { active != nil ? "ENDET IN" : next != nil ? (target == outbound ? "AUFBRUCH IN" : "NÄCHSTE STUNDE") : isAfterSchool ? "ABFAHRT IN" : "DEIN TAG" }
+    private var title: String { active?.subject ?? next?.subject ?? (isAfterSchool && home != nil ? "Heimweg" : snapshot?.tomorrow.first?.subject ?? "FLUR") }
+    private var label: String { active != nil ? "ENDET IN" : next != nil ? (target == outbound ? "AUFBRUCH IN" : "NÄCHSTE STUNDE") : isAfterSchool && home != nil ? "ABFAHRT IN" : snapshot?.tomorrow.isEmpty == false ? "NÄCHSTER SCHULTAG" : "DEIN TAG" }
     private var countdown: String {
         guard let target else { return "–" }
         let delta = max(0, target - minute)
@@ -76,6 +77,7 @@ private struct WatchCurrentView: View {
                 Text(countdown).font(.system(size: 27, weight: .semibold, design: .rounded).monospacedDigit()).foregroundStyle(WatchPalette.text).minimumScaleFactor(0.75).lineLimit(1)
                 Text(title).font(.system(size: 18, weight: .semibold, design: .serif)).foregroundStyle(WatchPalette.gold).lineLimit(2)
                 if let lesson = active ?? next { Text("\(clock(lesson.startMin))–\(clock(lesson.endMin))").font(.system(.caption2, design: .rounded)).foregroundStyle(WatchPalette.muted) }
+                else if let lesson = snapshot?.tomorrow.first { Text("Morgen · \(clock(lesson.startMin))").font(.system(.caption2, design: .rounded)).foregroundStyle(WatchPalette.muted) }
                 else if snapshot == nil { Text("FLUR auf dem iPhone öffnen, um den Plan zu laden.").font(.system(size: 11)).foregroundStyle(WatchPalette.muted) }
                 if let departure = isAfterSchool ? home : outbound, (active != nil || next != nil || isAfterSchool) {
                     Divider().overlay(WatchPalette.muted.opacity(0.3))

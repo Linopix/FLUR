@@ -304,8 +304,8 @@ private struct CurrentScreen: View {
             if let outboundDeparture, let parsed = minutes(outboundDeparture), parsed > minute, parsed - minute <= 150 { return "Aufbruch in" }
             return "Nächste Stunde in"
         }
-        if pastLessons, targetMinute != nil { return "Abfahrt nach Hause in" }
-        return "Nächster Schultag"
+        if pastLessons, let homeDeparture, let parsed = minutes(homeDeparture), parsed > minute { return "Abfahrt nach Hause in" }
+        return targetMinute == nil ? "Nächster Schultag" : "Nächster Schultag in"
     }
     private func countdown(_ target: Int?) -> String {
         guard let target else { return "—" }

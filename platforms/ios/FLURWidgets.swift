@@ -33,19 +33,21 @@ private struct FLURWidgetView: View {
     private var minute: Int { Calendar.current.component(.hour, from: entry.date) * 60 + Calendar.current.component(.minute, from: entry.date) }
     private var active: Lesson? { entry.snapshot?.today.first { $0.startMin <= minute && minute < $0.endMin && $0.status != "cancelled" } }
     private var next: Lesson? { entry.snapshot?.today.first { $0.startMin > minute && $0.status != "cancelled" } }
+    private var tomorrow: Lesson? { entry.snapshot?.tomorrow.first }
     private var departure: String? { entry.snapshot?.outbound?.legs?.first?.from?.departure ?? entry.snapshot?.outbound?.legs?.first?.from?.scheduledDeparture }
     private var deadline: Int? {
         if let active { return active.endMin }
         if let next, let departure, let value = parse(departure), value > minute, value <= next.startMin { return value }
-        return next?.startMin
+        if let next { return next.startMin }
+        return tomorrow.map { 1440 + $0.startMin }
     }
     private var deadlineDate: Date? {
         guard let deadline else { return nil }
         let base = Calendar.current.date(byAdding: .day, value: deadline / 1440, to: entry.date) ?? entry.date
         return Calendar.current.date(bySettingHour: (deadline % 1440) / 60, minute: deadline % 60, second: 0, of: base)
     }
-    private var title: String { active?.subject ?? next?.subject ?? "Unterricht geschafft" }
-    private var label: String { active != nil ? "STUNDE ENDET IN" : next != nil ? (deadline == (departure.flatMap(parse)) ? "AUFBRUCH IN" : "NÄCHSTE STUNDE") : "AKTUELL" }
+    private var title: String { active?.subject ?? next?.subject ?? tomorrow?.subject ?? "Unterricht geschafft" }
+    private var label: String { active != nil ? "STUNDE ENDET IN" : next != nil ? (deadline == (departure.flatMap(parse)) ? "AUFBRUCH IN" : "NÄCHSTE STUNDE") : tomorrow != nil ? "NÄCHSTER SCHULTAG" : "AKTUELL" }
     private var remaining: String {
         guard let deadline else { return "—" }
         let delta = max(0, deadline - minute)
@@ -71,6 +73,7 @@ private struct FLURWidgetView: View {
             Text(title).font(.system(size: family == .systemSmall ? 16 : 20, weight: .semibold, design: .serif)).foregroundStyle(WidgetPalette.gold).lineLimit(1)
             if let active { Text("Bis \(clock(active.endMin)) · \(active.room.isEmpty ? "Raum offen" : "Raum \(active.room)")").font(.system(size: 11)).foregroundStyle(WidgetPalette.muted).lineLimit(1) }
             else if let next { Text("\(clock(next.startMin)) · \(next.room.isEmpty ? "Raum offen" : "Raum \(next.room)")").font(.system(size: 11)).foregroundStyle(WidgetPalette.muted).lineLimit(1) }
+            else if let tomorrow { Text("Morgen · \(clock(tomorrow.startMin))").font(.system(size: 11)).foregroundStyle(WidgetPalette.muted).lineLimit(1) }
             else { Text("Stundenplan lokal gespeichert").font(.system(size: 11)).foregroundStyle(WidgetPalette.muted).lineLimit(1) }
         }.padding(family == .systemSmall ? 13 : 16).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
             .containerBackground(WidgetPalette.background, for: .widget)
