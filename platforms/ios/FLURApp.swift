@@ -1,7 +1,6 @@
 import SwiftUI
 import Security
 import Combine
-import WatchConnectivity
 
 @main
 struct FLURApp: App {
@@ -37,15 +36,18 @@ struct ScheduleCache: Codable { let today: [Lesson]; let tomorrow: [Lesson]; let
             if let data = try? JSONEncoder().encode(ScheduleCache(today: days.0, tomorrow: days.1, savedAt: .now)) {
                 UserDefaults.standard.set(data, forKey: cacheKey)
                 SharedScheduleStore.save(today: days.0, tomorrow: days.1, outbound: outbound, departures: departures, savedAt: .now)
+                WatchScheduleSender.sendLatestSnapshot()
             }
         } catch { self.error = error.localizedDescription; return }
         do {
             let trips = try await service.fetchTrips(settings, today: lessons, tomorrow: tomorrowLessons)
             outbound = trips.0; departures = trips.1
             SharedScheduleStore.save(today: lessons, tomorrow: tomorrowLessons, outbound: outbound, departures: departures, savedAt: updated ?? .now)
+            WatchScheduleSender.sendLatestSnapshot()
         } catch {
             self.error = error.localizedDescription
             SharedScheduleStore.save(today: lessons, tomorrow: tomorrowLessons, outbound: outbound, departures: departures, savedAt: updated ?? .now)
+            WatchScheduleSender.sendLatestSnapshot()
         }
     }
     func save() { settings.save() }

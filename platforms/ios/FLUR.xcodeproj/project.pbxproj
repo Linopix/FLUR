@@ -21,12 +21,14 @@
 		B1000000000000000000000A /* FLURWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = B20000000000000000000008 /* FLURWatch.app */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 
 		A10000000000000000000001 /* FLURApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000001 /* FLURApp.swift */; };
+		A10000000000000000000002 /* WatchScheduleSender.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000004 /* WatchScheduleSender.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		A20000000000000000000001 /* FLURApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FLURApp.swift; sourceTree = "<group>"; };
 		A20000000000000000000002 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A20000000000000000000003 /* FLUR.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FLUR.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A20000000000000000000004 /* WatchScheduleSender.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchScheduleSender.swift; sourceTree = "<group>"; };
 		B20000000000000000000001 /* FLURShared.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FLURShared.swift; sourceTree = "<group>"; };
 		B20000000000000000000002 /* FLURWidgets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FLURWidgets.swift; sourceTree = "<group>"; };
 		B20000000000000000000003 /* FLURWatchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FLURWatchApp.swift; sourceTree = "<group>"; };
@@ -62,6 +64,7 @@
 			children = (
 				A20000000000000000000001 /* FLURApp.swift */,
 				B20000000000000000000001 /* FLURShared.swift */,
+				A20000000000000000000004 /* WatchScheduleSender.swift */,
 				B20000000000000000000002 /* FLURWidgets.swift */,
 				B20000000000000000000003 /* FLURWatchApp.swift */,
 				B20000000000000000000004 /* FLURWatchWidget.swift */,
@@ -190,6 +193,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A10000000000000000000001 /* FLURApp.swift in Sources */,
+				A10000000000000000000002 /* WatchScheduleSender.swift in Sources */,
 				B10000000000000000000001 /* FLURShared.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

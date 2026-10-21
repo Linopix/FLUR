@@ -1,5 +1,4 @@
 import Foundation
-import WatchConnectivity
 import WidgetKit
 
 struct Lesson: Identifiable, Codable {
@@ -63,7 +62,6 @@ enum SharedScheduleStore {
         guard let data = try? JSONEncoder().encode(snapshot) else { return }
         UserDefaults(suiteName: appGroup)?.set(data, forKey: key)
         #if os(iOS)
-        WatchScheduleSender.send(data)
         WidgetCenter.shared.reloadTimelines(ofKind: "FLURCurrentWidget")
         #endif
     }
@@ -73,30 +71,3 @@ enum SharedScheduleStore {
     }
 }
 
-#if os(iOS)
-enum WatchScheduleSender {
-    private static let relay = WatchSessionRelay()
-    static func send(_ data: Data) { relay.send(data) }
-}
-private final class WatchSessionRelay: NSObject, WCSessionDelegate {
-    private var pending: Data?
-    func send(_ data: Data) {
-        guard WCSession.isSupported() else { return }
-        pending = data
-        let session = WCSession.default
-        session.delegate = self
-        if session.activationState == .activated { flush(session) }
-        else { session.activate() }
-    }
-    func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
-        if activationState == .activated { flush(session) }
-    }
-    func sessionDidBecomeInactive(_ session: WCSession) {}
-    func sessionDidDeactivate(_ session: WCSession) { session.activate() }
-    private func flush(_ session: WCSession) {
-        guard let pending else { return }
-        try? session.updateApplicationContext([SharedScheduleStore.key: pending])
-        self.pending = nil
-    }
-}
-#endif
