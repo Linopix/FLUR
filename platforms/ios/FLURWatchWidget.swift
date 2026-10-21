@@ -25,7 +25,7 @@ private struct WatchWidgetView: View {
     }
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
-            HStack { VStack(spacing: -3) { Text("FL"); Text("UR") }.font(.system(size: 11, weight: .black, design: .rounded).monospaced()).foregroundStyle(WatchWidgetPalette.gold); Spacer(); Text(entry.date, style: .time).font(.system(.caption2, design: .rounded).monospacedDigit()).foregroundStyle(WatchWidgetPalette.muted) }
+            HStack { Text("FLUR").font(.system(size: 10, weight: .bold, design: .rounded)).tracking(1).foregroundStyle(WatchWidgetPalette.gold); Spacer(); Text(entry.date, style: .time).font(.system(.caption2, design: .rounded).monospacedDigit()).foregroundStyle(WatchWidgetPalette.muted) }
             if let lesson = active ?? next ?? tomorrow {
                 Text(active == nil && next == nil ? "NÄCHSTER SCHULTAG" : active == nil && deadline == tripTime.flatMap(parse) ? "AUFBRUCH" : active == nil ? "ALS NÄCHSTES" : "STUNDE ENDET")
                     .font(.system(size: 9, weight: .bold)).tracking(1).foregroundStyle(WatchWidgetPalette.muted)

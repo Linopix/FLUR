@@ -62,7 +62,13 @@ private struct WatchCurrentView: View {
     private var outbound: Int? { outboundStop?.departure.flatMap(parse) ?? outboundStop?.scheduledDeparture.flatMap(parse) }
     private var home: Int? { homeStop?.departure.flatMap(parse) ?? homeStop?.scheduledDeparture.flatMap(parse) }
     private var title: String { active?.subject ?? next?.subject ?? (isAfterSchool && home != nil ? "Heimweg" : snapshot?.tomorrow.first?.subject ?? "FLUR") }
-    private var label: String { active != nil ? "ENDET IN" : next != nil ? (target == outbound ? "AUFBRUCH IN" : "NÄCHSTE STUNDE") : isAfterSchool && home != nil ? "ABFAHRT IN" : snapshot?.tomorrow.isEmpty == false ? "NÄCHSTER SCHULTAG" : "DEIN TAG" }
+    private var label: String { active != nil ? "Stunde endet in" : next != nil ? (target == outbound ? "Aufbruch in" : "Nächste Stunde in") : isAfterSchool && home != nil ? "Heimfahrt in" : snapshot?.tomorrow.isEmpty == false ? "Morgen" : "Dein Tag" }
+    private var nextTrip: SharedTrip? { isAfterSchool ? snapshot?.departures.first : snapshot?.outbound }
+    private var routeName: String? { nextTrip?.legs?.first(where: { $0.mode == "rail" })?.routeShortName ?? nextTrip?.legs?.first?.routeShortName }
+    private var tripDeparture: Int? {
+        let stop = nextTrip?.legs?.first?.from
+        return stop?.departure.flatMap(parse) ?? stop?.scheduledDeparture.flatMap(parse)
+    }
     private var countdown: String {
         guard let target else { return "–" }
         let delta = max(0, target - minute)
@@ -71,24 +77,42 @@ private struct WatchCurrentView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 5) { VStack(spacing: -3) { Text("FL"); Text("UR") }.font(.system(size: 15, weight: .black, design: .rounded).monospaced()).foregroundStyle(WatchPalette.gold); Spacer(); Text(now, style: .time).font(.system(.caption2, design: .rounded).monospacedDigit()).foregroundStyle(WatchPalette.muted) }
-                Text(label).font(.system(size: 10, weight: .bold)).tracking(1).foregroundStyle(WatchPalette.muted)
-                Text(countdown).font(.system(size: 27, weight: .semibold, design: .rounded).monospacedDigit()).foregroundStyle(WatchPalette.text).minimumScaleFactor(0.75).lineLimit(1)
-                Text(title).font(.system(size: 18, weight: .semibold, design: .serif)).foregroundStyle(WatchPalette.gold).lineLimit(2)
-                if let lesson = active ?? next { Text("\(clock(lesson.startMin))–\(clock(lesson.endMin))").font(.system(.caption2, design: .rounded)).foregroundStyle(WatchPalette.muted) }
-                else if let lesson = snapshot?.tomorrow.first { Text("Morgen · \(clock(lesson.startMin))").font(.system(.caption2, design: .rounded)).foregroundStyle(WatchPalette.muted) }
-                else if snapshot == nil { Text("FLUR auf dem iPhone öffnen, um den Plan zu laden.").font(.system(size: 11)).foregroundStyle(WatchPalette.muted) }
-                if let departure = isAfterSchool ? home : outbound, (active != nil || next != nil || isAfterSchool) {
-                    Divider().overlay(WatchPalette.muted.opacity(0.3))
-                    HStack { Image(systemName: "tram.fill").foregroundStyle(WatchPalette.gold); Text(isAfterSchool ? "Heimfahrt" : "Abfahrt").foregroundStyle(WatchPalette.muted); Spacer(); Text(clock(departure)).foregroundStyle(WatchPalette.text).monospacedDigit() }.font(.system(size: 11, weight: .medium))
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text("FLUR").font(.system(size: 13, weight: .bold, design: .rounded)).tracking(1.5).foregroundStyle(WatchPalette.gold)
+                    Spacer()
+                    Text(now, style: .time).font(.system(.caption, design: .rounded).weight(.medium).monospacedDigit()).foregroundStyle(WatchPalette.muted)
                 }
-            }.padding(.horizontal, 4)
+                Divider().overlay(WatchPalette.muted.opacity(0.3)).padding(.vertical, 8)
+                Text(label.uppercased()).font(.system(size: 9, weight: .bold, design: .rounded)).tracking(1.2).foregroundStyle(WatchPalette.muted)
+                Text(countdown).font(.system(size: 23, weight: .semibold, design: .rounded).monospacedDigit()).foregroundStyle(WatchPalette.text).minimumScaleFactor(0.72).lineLimit(1).padding(.top, 2)
+                Text(title).font(.system(size: 17, weight: .semibold, design: .serif)).foregroundStyle(WatchPalette.gold).lineLimit(1).padding(.top, 1)
+                if let lesson = active ?? next {
+                    Text("\(clock(lesson.startMin))–\(clock(lesson.endMin)) · \(lesson.room.isEmpty ? "Raum offen" : lesson.room)")
+                        .font(.system(size: 10, design: .rounded)).foregroundStyle(WatchPalette.muted).lineLimit(1).padding(.top, 2)
+                } else if let lesson = snapshot?.tomorrow.first {
+                    Text("Morgen · \(clock(lesson.startMin))").font(.system(size: 10, design: .rounded)).foregroundStyle(WatchPalette.muted).padding(.top, 2)
+                } else if snapshot == nil {
+                    Text("Plan in der iPhone-App laden").font(.system(size: 10)).foregroundStyle(WatchPalette.muted).lineLimit(2).padding(.top, 2)
+                }
+                if let departure = tripDeparture, active == nil || isAfterSchool {
+                    Divider().overlay(WatchPalette.muted.opacity(0.3)).padding(.vertical, 8)
+                    HStack(spacing: 5) {
+                        Image(systemName: "tram.fill").foregroundStyle(WatchPalette.gold)
+                        Text(isAfterSchool ? "Heimweg" : "Zug").foregroundStyle(WatchPalette.muted)
+                        Spacer(minLength: 2)
+                        Text([routeName, clock(departure)].compactMap { $0 }.joined(separator: " · "))
+                            .foregroundStyle(WatchPalette.text).monospacedDigit().lineLimit(1).minimumScaleFactor(0.75)
+                    }.font(.system(size: 10, weight: .medium, design: .rounded))
+                }
+            }.padding(.horizontal, 3).padding(.vertical, 2)
         }
+        .containerBackground(WatchPalette.background, for: .navigation)
     }
 }
 
 private enum WatchPalette {
+    static let background = Color(red: 0.067, green: 0.075, blue: 0.090)
     static let gold = Color(red: 0.855, green: 0.682, blue: 0.337)
     static let text = Color(red: 0.945, green: 0.941, blue: 0.922)
     static let muted = Color(red: 0.655, green: 0.675, blue: 0.714)

@@ -5,9 +5,10 @@ Dieser Ordner enthält die native SwiftUI-App, ein Widget für iPhone und WatchK
 ## Funktionen
 
 - **Aktuell:** laufende Stunde mit verbleibender Zeit, nächste Stunde oder Aufbruch zur passenden Verbindung; nach dem Unterricht Heimfahrt und Abfahrt.
-- **Stundenplan:** Tagesplan, Änderungen und morgiger Plan über „Stundenplan und Änderungen“ im Aktuell-Bereich.
+- **Wege:** Hin- und Heimweg gemeinsam in einem Bereich.
+- **Mehr:** Stundenplan, Mitteilungen und Daten & Verbindung.
 - **iPhone-Widget:** kleine und mittlere Home-Screen-Kachel sowie rechteckige und Inline-Lock-Screen-Widgets.
-- **Apple Watch:** eigenständiger Stunden-/Countdown-Bildschirm und rechteckige, Inline- und runde Komplikationen.
+- **Apple Watch:** kompakter Stunden-/Countdown-Bildschirm mit einzeiligem FLUR-Namen sowie rechteckige, Inline- und runde Komplikationen.
 - **Ohne FLUR-Server:** WebUntis- und Transitous-Daten werden direkt abgerufen. Das Passwort bleibt im iOS-Schlüsselbund; der Stundenplan liegt lokal in einer App Group und wird mit Watch Connectivity zur Uhr übertragen.
 - Der Watch-Datentransfer ist bewusst nur Teil des iPhone-App-Targets. Das iPhone-Widget verwendet dieselben gemeinsamen Daten, bindet aber `WatchConnectivity` nicht ein.
 - Das iPhone-Widget ist in Xcode explizit auf `iphoneos` und `iphonesimulator` beschränkt, damit macOS keine iPhone-spezifischen Widget-Familien baut.

@@ -257,7 +257,7 @@ private enum FlurStyle {
     static let red = Color(red: 0.91, green: 0.43, blue: 0.41)
 }
 
-private enum FlurTab: Hashable { case current, outbound, homebound, posts, data }
+private enum FlurTab: Hashable { case current, routes, more }
 
 struct DashboardView: View {
     @EnvironmentObject private var model: FLURModel
@@ -266,10 +266,8 @@ struct DashboardView: View {
     var body: some View {
         TabView(selection: $selection) {
             NavigationStack { CurrentScreen() }.tabItem { Label("Aktuell", systemImage: "sparkle") }.tag(FlurTab.current)
-            TravelScreen(direction: .outbound).tabItem { Label("Hinweg", systemImage: "tram") }.tag(FlurTab.outbound)
-            TravelScreen(direction: .homebound).tabItem { Label("Heimweg", systemImage: "house") }.tag(FlurTab.homebound)
-            PostsScreen().tabItem { Label("Post", systemImage: "envelope") }.tag(FlurTab.posts)
-            DataScreen().tabItem { Label("Daten", systemImage: "gearshape") }.tag(FlurTab.data)
+            NavigationStack { RoutesScreen() }.tabItem { Label("Wege", systemImage: "tram") }.tag(FlurTab.routes)
+            NavigationStack { MoreScreen() }.tabItem { Label("Mehr", systemImage: "ellipsis") }.tag(FlurTab.more)
         }
         .tint(FlurStyle.gold)
         .toolbarBackground(FlurStyle.surface, for: .tabBar)
@@ -319,16 +317,17 @@ private struct CurrentScreen: View {
         ZStack {
             FlurStyle.background.ignoresSafeArea()
             ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: 16) {
                     HStack(alignment: .center) {
                         FLURMark(size: 18)
                         Spacer()
                         Text(now.formatted(date: .omitted, time: .shortened)).font(.system(.title3, design: .rounded).weight(.semibold).monospacedDigit()).foregroundStyle(FlurStyle.gold)
                     }.padding(.top, 6)
-                    PageHeader(eyebrow: "DEIN TAG IN BEWEGUNG", title: "Aktuell", subtitle: now.formatted(.dateTime.weekday(.wide).day().month(.wide).locale(Locale(identifier: "de_DE"))))
-                    VStack(alignment: .leading, spacing: 15) {
+                    Text(now.formatted(.dateTime.weekday(.wide).day().month(.wide).locale(Locale(identifier: "de_DE"))).capitalized)
+                        .font(.subheadline).foregroundStyle(FlurStyle.muted)
+                    VStack(alignment: .leading, spacing: 12) {
                         SectionLabel(heading.uppercased())
-                        Text(countdown(targetMinute)).font(.system(size: 40, weight: .semibold, design: .rounded).monospacedDigit()).foregroundStyle(FlurStyle.text).contentTransition(.numericText())
+                        Text(countdown(targetMinute)).font(.system(size: 38, weight: .semibold, design: .rounded).monospacedDigit()).foregroundStyle(FlurStyle.text).contentTransition(.numericText())
                         if let lesson = activeLesson {
                             Text(lesson.subject).font(.system(size: 25, weight: .semibold, design: .serif)).foregroundStyle(FlurStyle.gold)
                             Text("\(clock(lesson.startMin))–\(clock(lesson.endMin)) · \(lesson.room.isEmpty ? "Raum offen" : "Raum \(lesson.room)")")
@@ -347,9 +346,9 @@ private struct CurrentScreen: View {
                             Text(model.loading ? "Stundenplan wird geladen …" : "Verbinde WebUntis für deinen nächsten Termin.").font(.subheadline).foregroundStyle(FlurStyle.muted)
                         }
                     }
-                    .padding(22).frame(maxWidth: .infinity, alignment: .leading)
-                    .background(FlurStyle.surface, in: RoundedRectangle(cornerRadius: 22))
-                    .overlay(RoundedRectangle(cornerRadius: 22).stroke(FlurStyle.border, lineWidth: 1))
+                    .padding(19).frame(maxWidth: .infinity, alignment: .leading)
+                    .background(FlurStyle.surface, in: RoundedRectangle(cornerRadius: 20))
+                    .overlay(RoundedRectangle(cornerRadius: 20).stroke(FlurStyle.border, lineWidth: 1))
                     if activeLesson == nil && (nextLesson != nil || pastLessons) {
                         VStack(alignment: .leading, spacing: 14) {
                             SectionLabel(pastLessons ? "HEIMWEG" : "WEG ZUR SCHULE")
@@ -382,11 +381,65 @@ private struct CurrentScreen: View {
 private struct FLURMark: View {
     var size: CGFloat = 16
     var body: some View {
-        VStack(spacing: 0) {
+        VStack(spacing: -size * 0.22) {
             Text("FL"); Text("UR")
-        }.font(.system(size: size, weight: .black, design: .rounded).monospaced())
-            .tracking(-size * 0.05).lineSpacing(-size * 0.24).foregroundStyle(FlurStyle.gold)
-            .frame(width: size * 2.2, height: size * 2.1)
+        }.font(.system(size: size * 0.52, weight: .black, design: .rounded).monospaced())
+            .tracking(-size * 0.025).foregroundStyle(FlurStyle.background)
+            .frame(width: size * 1.9, height: size * 1.9)
+            .background(FlurStyle.gold, in: RoundedRectangle(cornerRadius: size * 0.36, style: .continuous))
+    }
+}
+
+private struct MoreScreen: View {
+    var body: some View {
+        ZStack {
+            FlurStyle.background.ignoresSafeArea()
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    PageHeader(eyebrow: "FLUR", title: "Mehr", subtitle: "Plan, Mitteilungen und Einstellungen")
+                    NavigationLink { TodayScreen() } label: {
+                        MoreRow(icon: "calendar", title: "Stundenplan", detail: "Heute, morgen und Änderungen")
+                    }
+                    NavigationLink { PostsScreen() } label: {
+                        MoreRow(icon: "envelope", title: "Mitteilungen", detail: "Ausfälle und Vertretungen")
+                    }
+                    NavigationLink { DataScreen() } label: {
+                        MoreRow(icon: "gearshape", title: "Daten & Verbindung", detail: "WebUntis und Haltestellen")
+                    }
+                }.padding(.horizontal, 18).padding(.top, 14).padding(.bottom, 24)
+            }
+        }
+    }
+}
+
+private struct MoreRow: View {
+    let icon: String
+    let title: String
+    let detail: String
+    var body: some View {
+        HStack(spacing: 14) {
+            Image(systemName: icon).font(.system(size: 17, weight: .semibold)).foregroundStyle(FlurStyle.gold)
+                .frame(width: 38, height: 38).background(FlurStyle.background, in: RoundedRectangle(cornerRadius: 11))
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title).font(.subheadline.weight(.semibold)).foregroundStyle(FlurStyle.text)
+                Text(detail).font(.caption).foregroundStyle(FlurStyle.muted)
+            }
+            Spacer()
+            Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(FlurStyle.muted)
+        }.padding(14).background(FlurStyle.surface, in: RoundedRectangle(cornerRadius: 16))
+    }
+}
+
+private struct RoutesScreen: View {
+    @State private var direction: TravelScreen.Direction = .outbound
+    var body: some View {
+        VStack(spacing: 0) {
+            Picker("Weg", selection: $direction) {
+                Text("Zur Schule").tag(TravelScreen.Direction.outbound)
+                Text("Nach Hause").tag(TravelScreen.Direction.homebound)
+            }.pickerStyle(.segmented).tint(FlurStyle.gold).padding(.horizontal, 18).padding(.top, 10)
+            TravelScreen(direction: direction)
+        }.background(FlurStyle.background)
     }
 }
 
@@ -472,8 +525,8 @@ private struct TodayScreen: View {
     }
 }
 
-private struct TravelScreen: View {
-    enum Direction: Equatable { case outbound, homebound }
+struct TravelScreen: View {
+    enum Direction: Equatable, Hashable { case outbound, homebound }
     @EnvironmentObject private var model: FLURModel
     let direction: Direction
     private var isOutbound: Bool { direction == .outbound }
