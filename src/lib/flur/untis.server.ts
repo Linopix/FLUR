@@ -323,7 +323,7 @@ async function dayFor(
         klasseFields: ["id", "name", "longname"],
         roomFields: ["id", "name", "longname"],
         subjectFields: ["id", "name", "longname"],
-        teacherFields: ["id", "name", "longname", "orgname"],
+        teacherFields: ["id", "name", "longname"],
       },
     },
     session.id,
