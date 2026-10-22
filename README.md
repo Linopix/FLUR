@@ -44,3 +44,20 @@ Zugdaten kommen über [Transitous](https://transitous.org) (Fahrplandaten, unter
 - **Apple Watch:** `/uhr` ist die Vorlage für ein Widget, noch keine Complication.
 
 Zugangsdaten nicht committen.
+
+## Native iOS-, Widget- und Watch-App
+
+Die native SwiftUI-App liegt in [`platforms/ios/`](platforms/ios/README.md). Sie ist eine eigenständige Ergänzung zur bestehenden Web-App und verändert weder deren Laufzeit noch deren Build. Web- und iOS-Version verwenden dieselben fachlichen Datenquellen, die native App ruft WebUntis und Transitous direkt vom iPhone ab und benötigt keinen FLUR-Server.
+
+Der native Projektordner enthält:
+
+- die iPhone-App mit den Bereichen **Aktuell**, **Wege** und **Mehr**;
+- ein iPhone-Widget für den aktuellen Termin bzw. den Countdown zur nächsten Abfahrt;
+- eine eigenständige Apple-Watch-App samt Watch-Widget/Komplikationen;
+- gemeinsame Datenmodelle und lokale Synchronisierung zwischen iPhone und Watch.
+
+**Wichtig für Entwickler:** Einrichtung, Targets, Bundle-IDs, App Group, Signing und der Weg zur IPA stehen in [`platforms/ios/README.md`](platforms/ios/README.md). Zugangsdaten gehören nicht ins Repository. Die Web-App baut und läuft ohne den Ordner `platforms/`.
+
+## Android
+
+Eine Android-App ist machbar, aber noch nicht sinnvoll. Dieselbe Aufteilung (Aktuell, Wege, Mehr) ginge mit Jetpack Compose, Widgets über Glance. Liquid Glass gibt es auf Android nicht. Stattdessen Material 3 in derselben Tinte, mit demselben Stundenplan. Das wäre eine dritte Kopie der Fahrplanregeln neben Web und Swift. Erst bauen, wenn die iPhone-IPA im Alltag sitzt.
