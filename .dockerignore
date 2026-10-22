@@ -9,3 +9,5 @@ artifacts
 flur.env
 .env
 .env.*
+# Native iOS/watchOS is not part of the web image.
+platforms
