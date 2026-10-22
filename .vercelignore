@@ -1,0 +1,2 @@
+# Native iOS/watchOS is reviewed in-repo, not deployed with the web app.
+platforms
