@@ -135,15 +135,15 @@ function LessonRow({ lesson, minutes }: { lesson: Lesson; minutes: number | null
 function TripCard({ trip, loading }: { trip: TripPlan | null; loading: boolean }) {
   if (!trip) {
     return (
-      <div className="rounded-board border border-line bg-panel p-5">
+      <div className="flur-ticket p-5">
         <p className="text-sm text-mist">{loading ? "Verbindung wird gerechnet …" : "Noch keine Verbindung."}</p>
       </div>
     );
   }
   return (
-    <div className="rounded-board border border-line bg-panel p-5">
+    <div className="flur-ticket p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm uppercase tracking-widest text-mist">
+        <p className="text-sm text-mist">
           {trip.direction === "hin" ? "Losgehen" : "Ankunft zu Hause"}
         </p>
         <span
@@ -286,15 +286,16 @@ export function Board() {
         : "Beispieltag";
 
   return (
-    <div className="min-h-dvh bg-ink pb-24 text-paper md:pb-8">
+    <div className="min-h-dvh pb-28 text-paper md:pb-8">
       <header className="flex items-start justify-between gap-4 px-4 pt-6 md:px-8 md:pt-8">
         <div>
-          <p className="text-xs font-medium uppercase tracking-widest text-chalk">Flur</p>
-          <h1 className="mt-1 font-display text-3xl text-balance capitalize md:text-4xl">{dateLabel}</h1>
-          <p className="mt-1 text-sm text-mist">{sourceLabel}</p>
+          <p className="text-sm text-chalk">Flur</p>
+          <h1 className="mt-1 font-display text-3xl text-balance capitalize md:text-5xl">{dateLabel}</h1>
+          <div className="flur-rule mt-3 w-24" />
+          <p className="mt-2 text-sm text-mist">{sourceLabel}</p>
         </div>
         <div className="flex items-center gap-2">
-          <p className="font-display text-3xl tabular-nums md:text-5xl" aria-live="polite">
+          <p className="font-display text-4xl tabular-nums tracking-tight md:text-6xl" aria-live="polite">
             {flur.now ? formatClock(flur.now) : "––:––"}
           </p>
           <button
@@ -339,7 +340,7 @@ export function Board() {
         {view === "heute" ? (
           <div className="grid gap-5 lg:grid-cols-[20rem_minmax(0,1fr)_22rem] lg:items-start">
             <section className="rounded-board border border-line bg-panel p-5">
-              <p className="text-sm uppercase tracking-widest text-mist">
+              <p className="text-sm text-mist">
                 {focus?.kind === "now" ? "Jetzt" : focus?.kind === "tomorrow" ? "Morgen früh" : "Als Nächstes"}
               </p>
               {focus ? (
@@ -358,7 +359,7 @@ export function Board() {
             </section>
 
             <section className="rounded-board border border-line bg-panel p-3 md:p-4">
-              <h2 className="px-2 pt-1 text-sm uppercase tracking-widest text-mist">Stunden</h2>
+              <h2 className="px-2 pt-1 text-sm text-mist">Stunden</h2>
               {lessons.length === 0 ? (
                 <p className="px-2 py-6 text-mist">Keine Stunden. Frei, Ferien oder noch nichts eingetragen.</p>
               ) : (
@@ -376,7 +377,7 @@ export function Board() {
               )}
               {(schoolOver || !lookingAtToday) && flur.tomorrow.lessons.length > 0 ? (
                 <div className="mt-4 border-t border-line px-2 pt-4">
-                  <h3 className="text-sm uppercase tracking-widest text-mist">Morgen</h3>
+                  <h3 className="text-sm text-mist">Morgen</h3>
                   <ul className="mt-2">
                     {flur.tomorrow.lessons.map((lesson) => (
                       <LessonRow key={lesson.id} lesson={lesson} minutes={null} />
@@ -388,7 +389,7 @@ export function Board() {
 
             <div className="space-y-5">
               <section className="rounded-board border border-line bg-panel p-5">
-                <h2 className="text-sm uppercase tracking-widest text-mist">Änderungen</h2>
+                <h2 className="text-sm text-mist">Änderungen</h2>
                 {changes.length === 0 ? (
                   <p className="mt-3 text-pretty">Keine Vertretung, nichts entfällt.</p>
                 ) : (
@@ -446,12 +447,11 @@ export function Board() {
               </button>
             </div>
             <article className="rounded-board bg-paper p-6 text-ink md:p-8">
-              <p className="text-sm uppercase tracking-widest text-chalk-ink">Vorlage, noch ohne Versand</p>
+              <p className="text-sm text-chalk-ink">Vorlage, noch ohne Versand</p>
               <pre className="mt-4 font-sans text-base leading-relaxed whitespace-pre-wrap">{letter}</pre>
             </article>
             <p className="mt-4 text-sm text-pretty text-mist">
-              Mail, eine eigene Smartphone-App und Apple-Watch-Widgets sind der nächste Schritt. Die Uhr-Ansicht ist
-              die Vorlage für so ein Widget, das Telefon nutzt dieselbe Tafel.
+              Die native App liegt unter iPhone und Watch. Diese Tafel bleibt die Web-Version und braucht sie nicht.
             </p>
           </div>
         ) : null}
@@ -477,7 +477,7 @@ export function Board() {
             </div>
 
             <fieldset className="space-y-3">
-              <legend className="text-sm uppercase tracking-widest text-mist">WebUntis</legend>
+              <legend className="text-sm text-mist">WebUntis</legend>
               <label className="block text-sm">
                 Server
                 <input
@@ -543,7 +543,7 @@ export function Board() {
             </fieldset>
 
             <fieldset className="space-y-3">
-              <legend className="text-sm uppercase tracking-widest text-mist">Weg</legend>
+              <legend className="text-sm text-mist">Weg</legend>
               <label className="block text-sm">
                 Heimatadresse
                 <input
@@ -606,10 +606,7 @@ export function Board() {
         ) : null}
       </main>
 
-      <nav
-        className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-line bg-ink md:hidden"
-        aria-label="Ansichten"
-      >
+      <nav className="flur-dock md:hidden" aria-label="Ansichten">
         {NAV.map((item) => {
           const Icon = item.icon;
           const active = view === item.id;

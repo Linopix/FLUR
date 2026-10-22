@@ -247,14 +247,51 @@ enum JSONValue: Codable { case string(String), number(Double), object([String:JS
 }
 
 private enum FlurStyle {
-    static let background = Color(red: 0.067, green: 0.075, blue: 0.090)
-    static let surface = Color(red: 0.102, green: 0.114, blue: 0.137)
-    static let surfaceRaised = Color(red: 0.125, green: 0.137, blue: 0.161)
-    static let border = Color(red: 0.192, green: 0.208, blue: 0.239)
-    static let gold = Color(red: 0.855, green: 0.682, blue: 0.337)
-    static let text = Color(red: 0.945, green: 0.941, blue: 0.922)
-    static let muted = Color(red: 0.655, green: 0.675, blue: 0.714)
-    static let red = Color(red: 0.91, green: 0.43, blue: 0.41)
+    static let background = Color(red: 0.078, green: 0.067, blue: 0.051)
+    static let surface = Color(red: 0.114, green: 0.098, blue: 0.078)
+    static let border = Color(red: 0.29, green: 0.24, blue: 0.18)
+    static let gold = Color(red: 0.886, green: 0.694, blue: 0.353)
+    static let text = Color(red: 0.953, green: 0.937, blue: 0.894)
+    static let muted = Color(red: 0.64, green: 0.60, blue: 0.53)
+    static let red = Color(red: 0.83, green: 0.42, blue: 0.32)
+}
+
+private struct CorridorBackdrop: View {
+    var body: some View {
+        ZStack {
+            FlurStyle.background
+            EllipticalGradient(
+                colors: [FlurStyle.gold.opacity(0.28), .clear],
+                center: .top,
+                startRadiusFraction: 0.02,
+                endRadiusFraction: 0.72
+            )
+            EllipticalGradient(
+                colors: [Color(red: 0.22, green: 0.28, blue: 0.34).opacity(0.28), .clear],
+                center: .bottomTrailing,
+                startRadiusFraction: 0.0,
+                endRadiusFraction: 0.85
+            )
+        }
+        .ignoresSafeArea()
+    }
+}
+
+private extension View {
+    @ViewBuilder
+    func flurGlass(interactive: Bool = false) -> some View {
+        let shape = RoundedRectangle(cornerRadius: 28, style: .continuous)
+        if #available(iOS 26.0, *) {
+            let glass: Glass = interactive
+                ? .regular.tint(FlurStyle.gold.opacity(0.22)).interactive()
+                : .regular.tint(FlurStyle.gold.opacity(0.14))
+            self.glassEffect(glass, in: shape)
+        } else {
+            self
+                .background(.ultraThinMaterial, in: shape)
+                .overlay(shape.stroke(FlurStyle.gold.opacity(0.35), lineWidth: 0.6))
+        }
+    }
 }
 
 private enum FlurTab: Hashable { case current, routes, more }
@@ -264,16 +301,39 @@ struct DashboardView: View {
     @State private var selection: FlurTab = .current
 
     var body: some View {
-        TabView(selection: $selection) {
-            NavigationStack { CurrentScreen() }.tabItem { Label("Aktuell", systemImage: "sparkle") }.tag(FlurTab.current)
-            NavigationStack { RoutesScreen() }.tabItem { Label("Wege", systemImage: "tram") }.tag(FlurTab.routes)
-            NavigationStack { MoreScreen() }.tabItem { Label("Mehr", systemImage: "ellipsis") }.tag(FlurTab.more)
+        Group {
+            if #available(iOS 26.0, *) {
+                glassTabs
+            } else {
+                classicTabs
+            }
         }
         .tint(FlurStyle.gold)
-        .toolbarBackground(FlurStyle.surface, for: .tabBar)
-        .toolbarBackground(.visible, for: .tabBar)
         .preferredColorScheme(.dark)
         .task { await model.refresh() }
+    }
+
+    @available(iOS 26.0, *)
+    private var glassTabs: some View {
+        TabView(selection: $selection) {
+            Tab("Aktuell", systemImage: "clock", value: FlurTab.current) {
+                NavigationStack { CurrentScreen() }
+            }
+            Tab("Wege", systemImage: "tram.fill", value: FlurTab.routes) {
+                NavigationStack { RoutesScreen() }
+            }
+            Tab("Mehr", systemImage: "ellipsis", value: FlurTab.more) {
+                NavigationStack { MoreScreen() }
+            }
+        }
+    }
+
+    private var classicTabs: some View {
+        TabView(selection: $selection) {
+            NavigationStack { CurrentScreen() }.tabItem { Label("Aktuell", systemImage: "clock") }.tag(FlurTab.current)
+            NavigationStack { RoutesScreen() }.tabItem { Label("Wege", systemImage: "tram.fill") }.tag(FlurTab.routes)
+            NavigationStack { MoreScreen() }.tabItem { Label("Mehr", systemImage: "ellipsis") }.tag(FlurTab.more)
+        }
     }
 }
 
@@ -286,7 +346,6 @@ private struct CurrentScreen: View {
     private var nextLesson: Lesson? { model.lessons.first { $0.startMin > minute && $0.status != "cancelled" } }
     private var pastLessons: Bool { !model.lessons.filter { $0.status != "cancelled" }.isEmpty && nextLesson == nil && activeLesson == nil }
     private var outboundDeparture: String? { model.outbound?.legs?.first?.from?.departure ?? model.outbound?.legs?.first?.from?.scheduledDeparture }
-    private var outboundArrival: String? { model.outbound?.legs?.last?.to?.arrival ?? model.outbound?.legs?.last?.to?.scheduledArrival }
     private var homeDeparture: String? { model.departures.first?.legs?.first?.from?.departure ?? model.departures.first?.legs?.first?.from?.scheduledDeparture }
     private var targetMinute: Int? {
         if let activeLesson { return activeLesson.endMin }
@@ -315,66 +374,90 @@ private struct CurrentScreen: View {
 
     var body: some View {
         ZStack {
-            FlurStyle.background.ignoresSafeArea()
+            CorridorBackdrop()
             ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: 18) {
                     HStack(alignment: .center) {
                         FLURMark(size: 18)
                         Spacer()
-                        Text(now.formatted(date: .omitted, time: .shortened)).font(.system(.title3, design: .rounded).weight(.semibold).monospacedDigit()).foregroundStyle(FlurStyle.gold)
-                    }.padding(.top, 6)
-                    Text(now.formatted(.dateTime.weekday(.wide).day().month(.wide).locale(Locale(identifier: "de_DE"))).capitalized)
-                        .font(.subheadline).foregroundStyle(FlurStyle.muted)
-                    VStack(alignment: .leading, spacing: 12) {
-                        SectionLabel(heading.uppercased())
-                        Text(countdown(targetMinute)).font(.system(size: 38, weight: .semibold, design: .rounded).monospacedDigit()).foregroundStyle(FlurStyle.text).contentTransition(.numericText())
-                        if let lesson = activeLesson {
-                            Text(lesson.subject).font(.system(size: 25, weight: .semibold, design: .serif)).foregroundStyle(FlurStyle.gold)
-                            Text("\(clock(lesson.startMin))–\(clock(lesson.endMin)) · \(lesson.room.isEmpty ? "Raum offen" : "Raum \(lesson.room)")")
-                                .font(.subheadline).foregroundStyle(FlurStyle.muted)
-                        } else if let lesson = nextLesson {
-                            Text(lesson.subject).font(.system(size: 25, weight: .semibold, design: .serif)).foregroundStyle(FlurStyle.gold)
-                            Text("\(clock(lesson.startMin))–\(clock(lesson.endMin)) · \(lesson.room.isEmpty ? "Raum offen" : "Raum \(lesson.room)")")
-                                .font(.subheadline).foregroundStyle(FlurStyle.muted)
+                        Text(now.formatted(date: .omitted, time: .shortened))
+                            .font(.system(.title3, design: .rounded).weight(.semibold).monospacedDigit())
+                            .foregroundStyle(FlurStyle.gold)
+                    }
+                    .padding(.top, 8)
+                    Text(now.formatted(.dateTime.weekday(.wide).day().month(.wide).locale(Locale(identifier: "de_DE"))))
+                        .font(.subheadline)
+                        .foregroundStyle(FlurStyle.muted)
+
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text(heading)
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(FlurStyle.muted)
+                        Text(countdown(targetMinute))
+                            .font(.system(size: 42, weight: .semibold, design: .rounded).monospacedDigit())
+                            .foregroundStyle(FlurStyle.text)
+                            .contentTransition(.numericText())
+                        if let lesson = activeLesson ?? nextLesson ?? (pastLessons ? nil : model.tomorrowLessons.first) {
+                            Text(lesson.subject)
+                                .font(.system(size: 28, weight: .semibold, design: .serif))
+                                .foregroundStyle(FlurStyle.gold)
+                            Text(pastLessons ? "" : (activeLesson != nil || nextLesson != nil
+                                ? "\(clock(lesson.startMin))–\(clock(lesson.endMin)) · \(lesson.room.isEmpty ? "Raum offen" : "Raum \(lesson.room)")"
+                                : "Morgen um \(clock(lesson.startMin))"))
+                                .font(.subheadline)
+                                .foregroundStyle(FlurStyle.muted)
                         } else if pastLessons {
-                            Text("Unterricht geschafft").font(.system(size: 25, weight: .semibold, design: .serif)).foregroundStyle(FlurStyle.gold)
-                            Text("Zeit für den Heimweg.").font(.subheadline).foregroundStyle(FlurStyle.muted)
-                        } else if let lesson = model.tomorrowLessons.first {
-                            Text(lesson.subject).font(.system(size: 25, weight: .semibold, design: .serif)).foregroundStyle(FlurStyle.gold)
-                            Text("Morgen um \(clock(lesson.startMin))").font(.subheadline).foregroundStyle(FlurStyle.muted)
+                            Text("Unterricht geschafft")
+                                .font(.system(size: 28, weight: .semibold, design: .serif))
+                                .foregroundStyle(FlurStyle.gold)
+                            Text("Zeit für den Heimweg.")
+                                .font(.subheadline)
+                                .foregroundStyle(FlurStyle.muted)
                         } else {
-                            Text(model.loading ? "Stundenplan wird geladen …" : "Verbinde WebUntis für deinen nächsten Termin.").font(.subheadline).foregroundStyle(FlurStyle.muted)
+                            Text(model.loading ? "Stundenplan wird geladen." : "WebUntis verbinden, dann steht hier der nächste Termin.")
+                                .font(.subheadline)
+                                .foregroundStyle(FlurStyle.muted)
                         }
                     }
-                    .padding(19).frame(maxWidth: .infinity, alignment: .leading)
-                    .background(FlurStyle.surface, in: RoundedRectangle(cornerRadius: 20))
-                    .overlay(RoundedRectangle(cornerRadius: 20).stroke(FlurStyle.border, lineWidth: 1))
+                    .padding(22)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .flurGlass(interactive: true)
+
                     if activeLesson == nil && (nextLesson != nil || pastLessons) {
-                        VStack(alignment: .leading, spacing: 14) {
-                            SectionLabel(pastLessons ? "HEIMWEG" : "WEG ZUR SCHULE")
-                            if pastLessons, let trip = model.departures.first { ItineraryCard(item: trip) }
-                            else if let trip = model.outbound { ItineraryCard(item: trip) }
-                            else { Text("Verbindung wird geladen. Hinterlege Haltestellen unter Daten.").font(.subheadline).foregroundStyle(FlurStyle.muted) }
-                            if let departure = pastLessons ? homeDeparture : outboundDeparture {
-                                HStack { Label("Abfahrt", systemImage: "tram.fill"); Spacer(); Text(departure).monospacedDigit() }
-                                    .font(.subheadline.weight(.medium)).foregroundStyle(FlurStyle.text)
-                            }
-                            if !pastLessons, let arrival = outboundArrival {
-                                HStack { Label("Ankunft", systemImage: "mappin.and.ellipse"); Spacer(); Text(arrival).monospacedDigit() }
-                                    .font(.subheadline.weight(.medium)).foregroundStyle(FlurStyle.text)
-                            }
-                        }.padding(18).frame(maxWidth: .infinity, alignment: .leading).background(FlurStyle.surface, in: RoundedRectangle(cornerRadius: 19)).overlay(RoundedRectangle(cornerRadius: 19).stroke(FlurStyle.border, lineWidth: 1))
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text(pastLessons ? "Heimweg" : "Zur Schule")
+                                .font(.subheadline.weight(.medium))
+                                .foregroundStyle(FlurStyle.muted)
+                            if pastLessons, let trip = model.departures.first { ItineraryCard(item: trip, plain: true) }
+                            else if let trip = model.outbound { ItineraryCard(item: trip, plain: true) }
+                            else { Text("Haltestellen unter Mehr → Daten eintragen.").font(.subheadline).foregroundStyle(FlurStyle.muted) }
+                        }
+                        .padding(20)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .flurGlass()
                     }
-                    HStack(spacing: 8) { Image(systemName: "clock"); Text("Uhrzeit \(now.formatted(date: .omitted, time: .shortened)) · lokal berechnet") }
-                        .font(.caption).foregroundStyle(FlurStyle.muted)
+
                     NavigationLink(destination: TodayScreen()) {
-                        HStack { Label("Stundenplan und Änderungen", systemImage: "calendar"); Spacer(); Image(systemName: "chevron.right") }
-                            .font(.subheadline.weight(.medium)).foregroundStyle(FlurStyle.text)
-                            .padding(17).background(FlurStyle.surface, in: RoundedRectangle(cornerRadius: 16))
-                    }.buttonStyle(.plain)
-                }.padding(.horizontal, 18).padding(.top, 14).padding(.bottom, 24)
-            }.refreshable { await model.refresh() }
-        }.onReceive(tick) { now = $0 }
+                        HStack {
+                            Text("Stundenplan")
+                                .font(.body.weight(.semibold))
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption.weight(.semibold))
+                        }
+                        .foregroundStyle(FlurStyle.text)
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 6)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, 18)
+                .padding(.top, 8)
+                .padding(.bottom, 28)
+            }
+            .refreshable { await model.refresh() }
+        }
+        .onReceive(tick) { now = $0 }
     }
 }
 
@@ -393,7 +476,7 @@ private struct FLURMark: View {
 private struct MoreScreen: View {
     var body: some View {
         ZStack {
-            FlurStyle.background.ignoresSafeArea()
+            CorridorBackdrop()
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
                     PageHeader(eyebrow: "FLUR", title: "Mehr", subtitle: "Plan, Mitteilungen und Einstellungen")
@@ -439,7 +522,7 @@ private struct RoutesScreen: View {
                 Text("Nach Hause").tag(TravelScreen.Direction.homebound)
             }.pickerStyle(.segmented).tint(FlurStyle.gold).padding(.horizontal, 18).padding(.top, 10)
             TravelScreen(direction: direction)
-        }.background(FlurStyle.background)
+        }.background { CorridorBackdrop() }
     }
 }
 
@@ -459,7 +542,7 @@ private struct TodayScreen: View {
 
     var body: some View {
         ZStack {
-            FlurStyle.background.ignoresSafeArea()
+            CorridorBackdrop()
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
                     PageHeader(eyebrow: "FLUR", title: "Heute", subtitle: todayLabel)
@@ -534,7 +617,7 @@ struct TravelScreen: View {
 
     var body: some View {
         ZStack {
-            FlurStyle.background.ignoresSafeArea()
+            CorridorBackdrop()
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     PageHeader(eyebrow: "FLUR  ·  MOBILITÄT", title: isOutbound ? "Hinweg" : "Heimweg", subtitle: isOutbound ? "Pünktlich zur Schule" : "Nach dem Unterricht nach Hause")
@@ -558,7 +641,7 @@ private struct PostsScreen: View {
     private var changes: [Lesson] { model.lessons.filter { $0.status != "regular" || !$0.info.isEmpty } }
     var body: some View {
         ZStack {
-            FlurStyle.background.ignoresSafeArea()
+            CorridorBackdrop()
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     PageHeader(eyebrow: "FLUR  ·  MITTEILUNGEN", title: "Post", subtitle: "Was sich heute ändert")
@@ -588,7 +671,7 @@ private struct DataScreen: View {
 
     var body: some View {
         ZStack {
-            FlurStyle.background.ignoresSafeArea()
+            CorridorBackdrop()
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     PageHeader(eyebrow: "FLUR  ·  PRIVAT", title: "Daten", subtitle: "Deine Verbindung und dein Weg")
@@ -622,9 +705,15 @@ private struct DataScreen: View {
                         saved = true
                         Task { await model.refresh() }
                     } label: {
-                        HStack { Image(systemName: saved ? "checkmark" : "arrow.down.to.line"); Text(saved ? "Gespeichert" : "Daten sichern") }
-                            .font(.headline).foregroundStyle(FlurStyle.background).frame(maxWidth: .infinity).padding(.vertical, 16).background(FlurStyle.gold, in: RoundedRectangle(cornerRadius: 14))
+                        Label(saved ? "Gespeichert" : "Daten sichern", systemImage: saved ? "checkmark" : "arrow.down.to.line")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
                     }
+                    .buttonStyle(.borderedProminent)
+                    .tint(FlurStyle.gold)
+                    .foregroundStyle(FlurStyle.background)
+                    .modifier(GlassSaveButton())
 
                     VStack(alignment: .leading, spacing: 9) {
                         Label("Privat auf diesem iPhone", systemImage: "lock.shield.fill").font(.subheadline.weight(.semibold)).foregroundStyle(FlurStyle.text)
@@ -650,6 +739,16 @@ private struct DataScreen: View {
     }
 }
 
+private struct GlassSaveButton: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            content.buttonStyle(.glassProminent).tint(FlurStyle.gold)
+        } else {
+            content
+        }
+    }
+}
+
 private struct PageHeader: View {
     let eyebrow: String
     let title: String
@@ -657,8 +756,10 @@ private struct PageHeader: View {
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
-                Text(eyebrow.uppercased()).font(.system(size: 10, weight: .bold, design: .rounded)).tracking(1.8).foregroundStyle(FlurStyle.gold)
-                Text(title).font(.system(size: 36, weight: .semibold, design: .serif)).foregroundStyle(FlurStyle.text)
+                Text(eyebrow)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(FlurStyle.gold)
+                Text(title).font(.system(size: 34, weight: .semibold, design: .serif)).foregroundStyle(FlurStyle.text)
                 Text(subtitle).font(.subheadline).foregroundStyle(FlurStyle.muted)
             }
             Spacer(minLength: 4)
@@ -670,7 +771,7 @@ private struct PageHeader: View {
 private struct SectionLabel: View {
     let title: String
     init(_ title: String) { self.title = title }
-    var body: some View { Text(title).font(.system(size: 11, weight: .bold, design: .rounded)).tracking(1.5).foregroundStyle(FlurStyle.muted) }
+    var body: some View { Text(title).font(.subheadline.weight(.medium)).foregroundStyle(FlurStyle.muted) }
 }
 
 private struct LessonRow: View {
@@ -695,27 +796,45 @@ private struct LessonRow: View {
 
 private struct ItineraryCard: View {
     let item: Itinerary
+    var plain = false
     var body: some View {
-        VStack(alignment: .leading, spacing: 15) {
-            HStack(alignment: .firstTextBaseline, spacing: 10) {
-                Text(time(item.startTime)).font(.system(size: 22, weight: .semibold, design: .serif)).foregroundStyle(FlurStyle.text)
-                Image(systemName: "arrow.right").font(.caption.weight(.bold)).foregroundStyle(FlurStyle.gold)
-                Text(time(item.endTime)).font(.system(size: 22, weight: .semibold, design: .serif)).foregroundStyle(FlurStyle.text)
-                Spacer()
-                Text("LIVE").font(.system(size: 10, weight: .bold, design: .rounded)).tracking(1).foregroundStyle(FlurStyle.gold)
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(time(item.startTime))
+                    .font(.system(size: 22, weight: .semibold, design: .serif))
+                Image(systemName: "arrow.right")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(FlurStyle.gold)
+                Text(time(item.endTime))
+                    .font(.system(size: 22, weight: .semibold, design: .serif))
             }
+            .foregroundStyle(FlurStyle.text)
             ForEach(item.legs ?? []) { leg in
                 HStack(spacing: 8) {
-                    Image(systemName: leg.mode == "WALK" ? "figure.walk" : "tram.fill").foregroundStyle(FlurStyle.gold).frame(width: 18)
-                    Text(leg.routeShortName ?? leg.displayName ?? (leg.mode == "WALK" ? "Zu Fuß" : "Zug")).font(.caption.weight(.semibold)).foregroundStyle(FlurStyle.text)
-                    Text(leg.from?.name ?? "").font(.caption).foregroundStyle(FlurStyle.muted).lineLimit(1)
-                    Image(systemName: "arrow.right").font(.system(size: 9)).foregroundStyle(FlurStyle.muted)
-                    Text(leg.to?.name ?? "").font(.caption).foregroundStyle(FlurStyle.muted).lineLimit(1)
+                    Image(systemName: leg.mode == "WALK" ? "figure.walk" : "tram.fill")
+                        .foregroundStyle(FlurStyle.gold)
+                        .frame(width: 18)
+                    Text(leg.routeShortName ?? leg.displayName ?? (leg.mode == "WALK" ? "Zu Fuß" : "Zug"))
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(FlurStyle.text)
+                    Text(leg.from?.name ?? "")
+                        .font(.caption)
+                        .foregroundStyle(FlurStyle.muted)
+                        .lineLimit(1)
                     Spacer(minLength: 2)
-                    Text(time(leg.from?.departure)).font(.caption.monospacedDigit()).foregroundStyle(FlurStyle.text)
+                    Text(time(leg.from?.departure))
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(FlurStyle.text)
                 }
             }
-        }.padding(17).background(FlurStyle.surface, in: RoundedRectangle(cornerRadius: 17)).overlay(RoundedRectangle(cornerRadius: 17).stroke(FlurStyle.border, lineWidth: 1))
+        }
+        .padding(plain ? 0 : 16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background {
+            if !plain {
+                RoundedRectangle(cornerRadius: 18, style: .continuous).fill(FlurStyle.surface)
+            }
+        }
     }
 }
 

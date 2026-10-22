@@ -112,10 +112,10 @@ private struct WatchCurrentView: View {
 }
 
 private enum WatchPalette {
-    static let background = Color(red: 0.067, green: 0.075, blue: 0.090)
-    static let gold = Color(red: 0.855, green: 0.682, blue: 0.337)
-    static let text = Color(red: 0.945, green: 0.941, blue: 0.922)
-    static let muted = Color(red: 0.655, green: 0.675, blue: 0.714)
+    static let background = Color(red: 0.078, green: 0.067, blue: 0.051)
+    static let gold = Color(red: 0.886, green: 0.694, blue: 0.353)
+    static let text = Color(red: 0.953, green: 0.937, blue: 0.894)
+    static let muted = Color(red: 0.64, green: 0.60, blue: 0.53)
 }
 private func parse(_ value: String) -> Int? {
     let parts = value.split(separator: ":")

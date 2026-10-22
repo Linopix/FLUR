@@ -56,4 +56,8 @@ Der native Projektordner enthält:
 - eine eigenständige Apple-Watch-App samt Watch-Widget/Komplikationen;
 - gemeinsame Datenmodelle und lokale Synchronisierung zwischen iPhone und Watch.
 
-**Wichtig für Entwickler:** Einrichtung, Targets, Bundle-IDs, App Group, Signing, Build und bekannte Einschränkungen sind in [`platforms/ios/README.md`](platforms/ios/README.md) dokumentiert. Zugangsdaten gehören nicht ins Repository. Der iOS-Code wird separat über einen Branch und Pull Request eingebracht, sodass Änderungen an der Web-App unabhängig bleiben.
+**Wichtig für Entwickler:** Einrichtung, Targets, Bundle-IDs, App Group, Signing und der Weg zur IPA stehen in [`platforms/ios/README.md`](platforms/ios/README.md). Zugangsdaten gehören nicht ins Repository. Die Web-App baut und läuft ohne den Ordner `platforms/`.
+
+## Android
+
+Eine Android-App ist machbar, aber noch nicht sinnvoll. Dieselbe Aufteilung (Aktuell, Wege, Mehr) ginge mit Jetpack Compose, Widgets über Glance. Liquid Glass gibt es auf Android nicht. Stattdessen Material 3 in derselben Tinte, mit demselben Stundenplan. Das wäre eine dritte Kopie der Fahrplanregeln neben Web und Swift. Erst bauen, wenn die iPhone-IPA im Alltag sitzt.

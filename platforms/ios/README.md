@@ -64,6 +64,26 @@ Ein iPhone-Simulator wie **iPhone Duo** ist kein Ersatz für das physische iPhon
 - Die Watch wurde in der Xcode-Run-Destination-Liste nicht als eigenständiges Ziel angezeigt. Die Installation und Darstellung auf der echten Watch ist daher noch **nicht verifiziert**.
 - Die erfolgreiche Build-Beobachtung gehört zu einer lokalen Xcode-Konfiguration. Bitte auf einem frischen Checkout die vier Targets und Signing-Einstellungen prüfen, bevor daraus eine erfolgreiche Installation abgeleitet wird.
 
+## Aussehen
+
+Auf dem iPhone sitzt Liquid Glass nur auf den schwebenden Flächen: Tab-Leiste, Countdown und die kleine Weg-Karte. Stundenplan, Mitteilungen und Formulare bleiben deckend, sonst wird die Schrift unruhig. Unter iOS 26 zeichnet das System das Glas. Auf älteren iPhones dieselben Flächen mit einem dünnen Material. Widgets und die Watch bleiben flach.
+
+## IPA auf dem eigenen Mac
+
+Eine IPA kann nur Xcode auf einem Mac signieren. Das Repository enthält den Quelltext, nicht die signierte Datei.
+
+1. `git checkout main && git pull`
+2. `platforms/ios/FLUR.xcodeproj` öffnen. Schema **FLUR**.
+3. Im Apple Developer Portal unter Identifiers → App Groups die Gruppe `group.de.linopix.flur` anlegen, falls sie fehlt.
+4. Dieselbe Gruppe bei diesen Bundle-IDs anhaken: `de.linopix.flur`, `de.linopix.flur.widget`, `de.linopix.flur.watchkitapp`, `de.linopix.flur.watchkitapp.widget`.
+5. In Xcode bei allen vier Targets: Team auswählen, Automatically manage signing, App Group `group.de.linopix.flur`. Keine andere Gruppe.
+6. Destination **Any iOS Device (arm64)**, nicht der Simulator.
+7. **Product → Archive**.
+8. Im Organizer **Distribute App → Custom → Development**. Automatic signing, App Thinning **None**, **Export**.
+9. Installieren über Xcode → Window → Devices and Simulators → iPhone → Plus → die `.ipa`.
+
+Scheitert Archive an der App Group, zuerst Schritt 3 und 4, danach in Xcode bei jedem Target Signing kurz aus- und wieder einschalten.
+
 ## GitHub und Schutz der Web-Version
 
 Der iOS-Code bleibt unter `platforms/ios/`, damit Web- und iOS-Änderungen im selben Repository klar getrennt reviewbar sind. Änderungen werden auf einem eigenen Feature-Branch und über einen Pull Request eingebracht. Die Web-App wird dadurch nicht automatisch verändert oder veröffentlicht; Web-Dateien und bestehende Web-Buildschritte sollten in einem iOS-Pull-Request unangetastet bleiben.

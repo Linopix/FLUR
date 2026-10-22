@@ -47,7 +47,7 @@ export function WatchFace() {
           )}
         </div>
         <p className="mt-6 text-sm text-pretty text-mist">
-          Vorlage für ein Apple-Watch-Widget. Die echte Complication kommt später.
+          Dieselbe Tafel, klein. Die native Uhr liegt in der Watch-App.
         </p>
         <Link to="/" className="mt-4 inline-flex h-12 items-center text-chalk">
           Zurück zur Tafel
