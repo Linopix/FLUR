@@ -438,16 +438,23 @@ private struct CurrentScreen: View {
                     }
 
                     NavigationLink(destination: TodayScreen()) {
-                        HStack {
+                        HStack(spacing: 12) {
+                            Image(systemName: "calendar")
+                                .font(.system(size: 17, weight: .semibold))
+                                .foregroundStyle(FlurStyle.gold)
+                                .frame(width: 38, height: 38)
+                                .background(FlurStyle.background, in: RoundedRectangle(cornerRadius: 11))
                             Text("Stundenplan")
                                 .font(.body.weight(.semibold))
                             Spacer()
                             Image(systemName: "chevron.right")
                                 .font(.caption.weight(.semibold))
+                                .foregroundStyle(FlurStyle.muted)
                         }
                         .foregroundStyle(FlurStyle.text)
-                        .padding(.horizontal, 4)
-                        .padding(.vertical, 6)
+                        .padding(14)
+                        .background(FlurStyle.surface, in: RoundedRectangle(cornerRadius: 16))
+                        .overlay(RoundedRectangle(cornerRadius: 16).stroke(FlurStyle.border, lineWidth: 1))
                     }
                     .buttonStyle(.plain)
                 }
@@ -754,16 +761,18 @@ private struct PageHeader: View {
     let title: String
     let subtitle: String
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text(eyebrow)
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(FlurStyle.gold)
-                Text(title).font(.system(size: 34, weight: .semibold, design: .serif)).foregroundStyle(FlurStyle.text)
-                Text(subtitle).font(.subheadline).foregroundStyle(FlurStyle.muted)
+                Spacer(minLength: 8)
+                Text(Date.now.formatted(.dateTime.hour().minute()))
+                    .font(.system(size: 15, weight: .semibold, design: .rounded).monospacedDigit())
+                    .foregroundStyle(FlurStyle.gold)
             }
-            Spacer(minLength: 4)
-            Text(Date.now.formatted(.dateTime.hour().minute())).font(.system(size: 14, weight: .semibold, design: .rounded).monospacedDigit()).foregroundStyle(FlurStyle.gold).padding(.top, 5)
+            Text(title).font(.system(size: 34, weight: .semibold, design: .serif)).foregroundStyle(FlurStyle.text)
+            Text(subtitle).font(.subheadline).foregroundStyle(FlurStyle.muted)
         }.padding(.bottom, 2)
     }
 }
