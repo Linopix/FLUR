@@ -51,6 +51,15 @@ export function formatDay(iso: string): string {
   }).format(dateFromIso(iso));
 }
 
+export function formatDayShort(iso: string): string {
+  return new Intl.DateTimeFormat("de-DE", {
+    timeZone: "Europe/Berlin",
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  }).format(dateFromIso(iso));
+}
+
 export function formatClock(date: Date): string {
   return new Intl.DateTimeFormat("de-DE", {
     timeZone: "Europe/Berlin",

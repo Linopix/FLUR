@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { demoBoard, demoTrip } from "@/lib/flur/demo";
-import { fetchBoard, fetchServerBoard, fetchServerProfile, fetchTrip } from "@/lib/flur/fns";
+import { fetchBoard, fetchDesk, fetchServerBoard, fetchServerDesk, fetchServerProfile, fetchTrip } from "@/lib/flur/fns";
+import { loadDeskCache, saveDeskCache } from "@/lib/flur/cache";
+import { demoDesk, type DeskData } from "@/lib/flur/desk";
 import { outboundAim, returnAim } from "@/lib/flur/plan";
-import { clearSettings, emptySettings, hasUntis, loadSettings, saveSettings } from "@/lib/flur/settings";
+import { emptySettings, hasUntis, loadSettings, saveSettings } from "@/lib/flur/settings";
 import type { DayBoard, Mode, ServerProfile, Settings, TripPlan } from "@/lib/flur/types";
 
 const BLANK_DAY: DayBoard = { source: "demo", iso: "", lessons: [] };
@@ -21,6 +23,10 @@ export function useFlur() {
   const [heim, setHeim] = useState<TripPlan | null>(null);
   const [tripError, setTripError] = useState<string | null>(null);
   const [tripLoading, setTripLoading] = useState(false);
+  const [desk, setDesk] = useState<DeskData | null>(null);
+  const [deskError, setDeskError] = useState<string | null>(null);
+  const [deskLoading, setDeskLoading] = useState(false);
+  const [deskFromCache, setDeskFromCache] = useState(false);
 
   useEffect(() => {
     setSettingsState(loadSettings());
@@ -83,6 +89,7 @@ export function useFlur() {
                 school: settings.school,
                 user: settings.user,
                 password: settings.password,
+                login: settings.login,
                 who: settings.who,
                 whoName: settings.whoName,
               },
@@ -119,6 +126,75 @@ export function useFlur() {
     serverUntis,
     settings.baseUrl,
     settings.password,
+    settings.login,
+    settings.school,
+    settings.user,
+    settings.who,
+    settings.whoName,
+  ]);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    let cancelled = false;
+    const run = async () => {
+      if (!deviceUntis && !serverUntis) {
+        setDesk(demoDesk(new Date()));
+        setDeskError(null);
+        setDeskFromCache(false);
+        setDeskLoading(false);
+        return;
+      }
+      setDeskLoading(true);
+      try {
+        const result = deviceUntis
+          ? await fetchDesk({
+              data: {
+                baseUrl: settings.baseUrl,
+                school: settings.school,
+                user: settings.user,
+                password: settings.password,
+                login: settings.login,
+                who: settings.who,
+                whoName: settings.whoName,
+              },
+            })
+          : await fetchServerDesk();
+        if (cancelled) return;
+        if (result.ok) {
+          setDesk(result.desk);
+          setDeskError(null);
+          setDeskFromCache(false);
+          saveDeskCache(result.desk);
+        } else {
+          const cached = loadDeskCache();
+          setDeskError(result.error);
+          setDesk(cached);
+          setDeskFromCache(Boolean(cached));
+        }
+      } catch (error) {
+        if (!cancelled) {
+          const cached = loadDeskCache();
+          setDeskError(error instanceof Error ? error.message : "Schuldaten nicht geladen.");
+          setDesk(cached);
+          setDeskFromCache(Boolean(cached));
+        }
+      } finally {
+        if (!cancelled) setDeskLoading(false);
+      }
+    };
+    void run();
+    const id = window.setInterval(() => void run(), 5 * 60 * 1000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [
+    deviceUntis,
+    hydrated,
+    serverUntis,
+    settings.baseUrl,
+    settings.password,
+    settings.login,
     settings.school,
     settings.user,
     settings.who,
@@ -208,12 +284,16 @@ export function useFlur() {
   );
 
   const resetSettings = useCallback(() => {
-    clearSettings();
-    setSettingsState(emptySettings());
+    const next = { ...emptySettings(), onboarded: true };
+    saveSettings(next);
+    setSettingsState(next);
     setHin(null);
     setHeim(null);
     setBoardLive(false);
     setBoardError(null);
+    setDesk(demoDesk(new Date()));
+    setDeskError(null);
+    setDeskFromCache(false);
   }, []);
 
   return {
@@ -230,6 +310,10 @@ export function useFlur() {
     heim,
     tripError,
     tripLoading,
+    desk,
+    deskError,
+    deskLoading,
+    deskFromCache,
     exampleRoute,
     deviceUntis,
     serverUntis,

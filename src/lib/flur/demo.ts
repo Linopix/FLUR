@@ -1,5 +1,5 @@
-import { addDaysIso, berlinParts, formatMinutes } from "@/lib/flur/time";
-import { EXAMPLE_PLACES, MODE_LABEL, type DayBoard, type Lesson, type Mode, type TripPlan } from "@/lib/flur/types";
+import { addDaysIso, berlinParts, formatMinutes } from "./time.ts";
+import { EXAMPLE_PLACES, MODE_LABEL, type DayBoard, type Lesson, type Mode, type TripPlan } from "./types.ts";
 
 const PERIODS: Array<Omit<Lesson, "id">> = [
   {

@@ -21,41 +21,36 @@ export function WatchFace() {
   const train = flur.hin?.legs.find((leg) => leg.mode === "rail");
 
   return (
-    <main className="flex min-h-dvh items-center justify-center bg-ink px-4 py-8 text-paper">
-      <section className="w-full max-w-xs rounded-board border border-line bg-panel px-6 py-7">
-        <p className="font-display text-sm tracking-widest text-chalk">FLUR</p>
-        <p className="mt-4 font-display text-6xl tabular-nums leading-none">
-          {flur.now ? formatClock(flur.now) : "––:––"}
-        </p>
-        <div className="mt-6 border-t border-line pt-5">
-          <p className="text-sm text-mist">{active ? "Jetzt" : "Nächste Stunde"}</p>
+    <main className="flex min-h-dvh items-center justify-center bg-canvas px-5 py-10 text-label">
+      <section className="apple-card w-full max-w-xs px-6 py-7">
+        <p className="text-xs font-semibold tracking-wide text-secondary">FLUR</p>
+        <p className="apple-time mt-3 text-6xl">{flur.now ? formatClock(flur.now) : "––:––"}</p>
+        <div className="mt-6 border-t border-separator pt-5">
+          <p className="text-sm font-semibold text-accent">{active ? "Jetzt" : "Nächste Stunde"}</p>
           {focus ? (
             <>
-              <h1 className="mt-1 font-display text-3xl text-balance">{focus.subject}</h1>
-              <p className="mt-1 text-mist">
+              <h1 className="font-display mt-1 text-3xl text-balance">{focus.subject}</h1>
+              <p className="mt-1 text-secondary">
                 {formatMinutes(focus.startMin)}–{formatMinutes(focus.endMin)} · {focus.room || "Raum offen"}
               </p>
             </>
           ) : (
-            <h1 className="mt-1 font-display text-3xl">Frei</h1>
+            <h1 className="font-display mt-1 text-3xl">Frei</h1>
           )}
         </div>
-        <div className="mt-5 border-t border-line pt-5">
-          <p className="text-sm text-mist">Nächster Zug</p>
+        <div className="mt-5 border-t border-separator pt-5">
+          <p className="text-sm font-semibold text-secondary">Nächster Zug</p>
           {train ? (
-            <p className="mt-1 text-lg">
+            <p className="mt-1 text-lg font-semibold tracking-tight">
               {train.title} · {formatInstant(train.departure)}
               {flur.hin?.punctual ? "" : " · verspätet"}
             </p>
           ) : (
-            <p className="mt-1 text-mist">{flur.tripLoading ? "wird geladen" : "keine Verbindung"}</p>
+            <p className="mt-1 text-secondary">{flur.tripLoading ? "wird geladen" : "keine Verbindung"}</p>
           )}
         </div>
-        <Link
-          to="/"
-          className="mt-6 inline-flex h-12 items-center text-sm font-medium text-chalk"
-        >
-          Zurück zur Tafel
+        <Link to="/" className="mt-6 inline-flex h-12 items-center text-base font-semibold text-accent">
+          Zurück
         </Link>
       </section>
     </main>

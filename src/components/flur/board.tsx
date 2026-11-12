@@ -1,9 +1,12 @@
 import { Link } from "@tanstack/react-router";
 import {
   Bike,
+  BookOpen,
   Bus,
   CalendarDays,
+  CalendarRange,
   Car,
+  ChevronLeft,
   ChevronRight,
   Copy,
   Check,
@@ -13,20 +16,26 @@ import {
   Settings as SettingsIcon,
   Train,
 } from "lucide-react";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { DEMO_LESSONS, lessonSpan } from "@/lib/flur/demo";
-import { emptySettings } from "@/lib/flur/settings";
-import { MODE_LABEL, type Lesson, type Mode, type Settings, type TripLeg, type TripPlan } from "@/lib/flur/types";
-import { berlinParts, formatClock, formatDay, formatInstant, formatMinutes } from "@/lib/flur/time";
+import { useEffect, useMemo, useState } from "react";
+import { SchoolView } from "@/components/flur/school";
+import { Setup, type SetupStep } from "@/components/flur/setup";
 import { useFlur } from "@/components/flur/use-flur";
+import { WeekView } from "@/components/flur/week";
+import { DEMO_LESSONS, lessonSpan } from "@/lib/flur/demo";
+import { downloadIcs, toIcs } from "@/lib/flur/desk";
+import { forgetProfile, loadProfiles, rememberProfile, type LocalProfile } from "@/lib/flur/profiles";
+import { hasRoute, hasUntis } from "@/lib/flur/settings";
+import { MODE_LABEL, type Lesson, type Mode, type TripLeg, type TripPlan } from "@/lib/flur/types";
+import { addDaysIso, berlinParts, formatClock, formatDay, formatInstant, formatMinutes } from "@/lib/flur/time";
 
-type View = "heute" | "wege" | "post" | "setup";
+type View = "heute" | "woche" | "wege" | "schule" | "post" | "setup";
 type Leg = "hin" | "heim";
 
 const NAV: Array<{ id: View; label: string; icon: typeof Train }> = [
   { id: "heute", label: "Heute", icon: CalendarDays },
+  { id: "woche", label: "Woche", icon: CalendarRange },
   { id: "wege", label: "Wege", icon: Train },
-  { id: "post", label: "Post", icon: Mail },
+  { id: "schule", label: "Schule", icon: BookOpen },
   { id: "setup", label: "Mehr", icon: SettingsIcon },
 ];
 
@@ -77,7 +86,7 @@ function ModeSwitch({ mode, onChange }: { mode: Mode; onChange: (mode: Mode) => 
     { id: "walk", label: "Zu Fuß", icon: Footprints },
   ];
   return (
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" role="radiogroup" aria-label="Weg zum Bahnhof">
+    <div className="apple-seg grid-cols-2 sm:grid-cols-4" role="radiogroup" aria-label="Weg zum Bahnhof">
       {items.map((item) => {
         const Icon = item.icon;
         const active = mode === item.id;
@@ -88,12 +97,6 @@ function ModeSwitch({ mode, onChange }: { mode: Mode; onChange: (mode: Mode) => 
             role="radio"
             aria-checked={active}
             onClick={() => onChange(item.id)}
-            className={
-              "flex h-12 items-center justify-center gap-2 rounded-xl border text-sm font-medium transition-colors " +
-              (active
-                ? "border-chalk bg-chalk text-chalk-ink"
-                : "border-line bg-ink text-paper hover:border-chalk")
-            }
           >
             <Icon className="size-4" aria-hidden="true" />
             {item.label}
@@ -110,42 +113,43 @@ function LessonRow({ lesson, minutes }: { lesson: Lesson; minutes: number | null
   const past = minutes != null && minutes >= lesson.endMin;
   const badge = statusLabel(lesson);
   const rail =
-    lesson.status === "cancelled" ? "bg-rust" : current ? "bg-chalk" : past ? "bg-line" : "bg-chalk/50";
+    lesson.status === "cancelled" ? "bg-signal-bad" : current ? "bg-accent" : past ? "bg-track" : "bg-soon";
   return (
     <li
       className={
-        "grid grid-cols-[4.25rem_0.5rem_minmax(0,1fr)] items-stretch gap-3 rounded-xl px-2 py-3 " +
-        (current ? "bg-ink" : "")
+        "grid grid-cols-[4.25rem_0.35rem_minmax(0,1fr)] items-stretch gap-3 rounded-xl px-3 py-3 " +
+        (current ? "bg-now" : "")
       }
     >
       <div
         className={
-          "pt-0.5 text-right font-display text-lg leading-none tabular-nums " + (past ? "text-mist" : "text-paper")
+          "pt-0.5 text-right text-base leading-none font-semibold tabular-nums tracking-tight " +
+          (past || lesson.status === "cancelled" ? "text-secondary" : "text-label")
         }
       >
         <div>{formatMinutes(lesson.startMin)}</div>
-        <div className="mt-1 text-sm text-mist">{formatMinutes(lesson.endMin)}</div>
+        <div className="mt-1 text-sm font-medium text-secondary">{formatMinutes(lesson.endMin)}</div>
       </div>
       <div className={"my-1 h-full w-1 justify-self-center rounded-full " + rail} />
       <div className="min-w-0">
         <div className="flex items-baseline justify-between gap-3">
           <h3
             className={
-              "truncate text-lg font-medium " +
-              (lesson.status === "cancelled" ? "text-mist line-through" : past ? "text-mist" : "text-paper")
+              "truncate text-lg font-semibold tracking-tight " +
+              (lesson.status === "cancelled" ? "text-secondary line-through" : past ? "text-secondary" : "text-label")
             }
           >
             {lesson.subject}
           </h3>
-          {lesson.room ? <span className="shrink-0 text-sm text-mist">{lesson.room}</span> : null}
+          {lesson.room ? <span className="shrink-0 text-sm text-secondary">{lesson.room}</span> : null}
         </div>
-        <p className="mt-1 truncate text-sm text-mist">
+        <p className="mt-0.5 truncate text-sm text-secondary">
           {lesson.originalTeacher
             ? `${lesson.teacher} statt ${lesson.originalTeacher}`
             : lesson.teacher || "Lehrkraft offen"}
         </p>
         {badge ? (
-          <p className={"mt-1.5 text-sm font-medium " + (lesson.status === "cancelled" ? "text-rust" : "text-chalk")}>
+          <p className={"mt-1 text-sm font-semibold " + (lesson.status === "cancelled" ? "text-danger" : "text-accent")}>
             {badge}
             {lesson.info &&
             lesson.info.toLowerCase() !== "entfällt" &&
@@ -161,10 +165,10 @@ function LessonRow({ lesson, minutes }: { lesson: Lesson; minutes: number | null
 
 function BreakRow({ minutes }: { minutes: number }) {
   return (
-    <li className="flex items-center gap-3 px-3 py-1 text-sm text-mist">
-      <span className="h-px flex-1 bg-line" />
+    <li className="flex items-center gap-3 px-3 py-1 text-xs font-medium text-tertiary">
+      <span className="h-px flex-1 bg-separator" />
       Pause {minutes} Min
-      <span className="h-px flex-1 bg-line" />
+      <span className="h-px flex-1 bg-separator" />
     </li>
   );
 }
@@ -290,21 +294,6 @@ function TripCard({
   );
 }
 
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: ReactNode;
-}) {
-  return (
-    <label className="flex flex-col gap-1.5 text-sm text-mist">
-      {label}
-      {children}
-    </label>
-  );
-}
-
 function digestText(input: {
   dateLabel: string;
   lessons: Lesson[];
@@ -344,7 +333,9 @@ export function Board() {
   const [view, setView] = useState<View>("heute");
   const [leg, setLeg] = useState<Leg>("hin");
   const [copied, setCopied] = useState(false);
-  const [draft, setDraft] = useState<Settings>(flur.settings);
+  const [setupStep, setSetupStep] = useState<SetupStep | null>(null);
+  const [dayShift, setDayShift] = useState(0);
+  const [profiles, setProfiles] = useState<LocalProfile[]>([]);
   const minutes = flur.now ? berlinParts(flur.now).minutes : null;
   const usingDemo = !flur.boardLive && !flur.today.lessons.length;
   const lessons = usingDemo ? DEMO_LESSONS : flur.today.lessons;
@@ -357,10 +348,17 @@ export function Board() {
   const schoolOver = lookingAtToday && minutes != null && !todayFocus && Boolean(tomorrowFirst);
   const changes = lessons.filter((lesson) => lesson.status !== "regular");
   const clock = focus ? heroClock(focus.kind, focus.lesson, minutes) : null;
+  const todayIso = flur.now ? berlinParts(flur.now).iso : "";
+  const selectedIso = todayIso ? addDaysIso(todayIso, dayShift) : "";
+  const shifted = dayShift !== 0;
+  const listLessons = !shifted
+    ? lessons
+    : (flur.desk?.days.find((day) => day.iso === selectedIso)?.lessons ?? []);
+  const listMinutes = !shifted && lookingAtToday ? minutes : null;
 
   useEffect(() => {
-    setDraft(flur.settings);
-  }, [flur.settings]);
+    if (view === "setup") setProfiles(loadProfiles());
+  }, [view]);
 
   useEffect(() => {
     if (!flur.settings.kioskRotate) return;
@@ -379,15 +377,15 @@ export function Board() {
 
   const breaks = useMemo(() => {
     const rows: Array<{ kind: "lesson"; lesson: Lesson } | { kind: "break"; minutes: number; at: number }> = [];
-    lessons.forEach((lesson, index) => {
+    listLessons.forEach((lesson, index) => {
       rows.push({ kind: "lesson", lesson });
-      const next = lessons[index + 1];
+      const next = listLessons[index + 1];
       if (!next) return;
       const gap = next.startMin - lesson.endMin;
       if (gap >= 10) rows.push({ kind: "break", minutes: gap, at: lesson.endMin });
     });
     return rows;
-  }, [lessons]);
+  }, [listLessons]);
 
   const letter = digestText({ dateLabel, lessons, hin: flur.hin, heim: flur.heim });
 
@@ -406,6 +404,11 @@ export function Board() {
     else void document.documentElement.requestFullscreen();
   }
 
+  function exportCalendar() {
+    if (!flur.desk) return;
+    downloadIcs(toIcs(flur.desk, flur.now ?? new Date()));
+  }
+
   function openLeg(next: Leg) {
     setLeg(next);
     setView("wege");
@@ -421,6 +424,39 @@ export function Board() {
 
   const kicker =
     focus?.kind === "now" ? "Jetzt" : focus?.kind === "tomorrow" ? "Morgen früh" : focus ? "Als Nächstes" : "Heute";
+
+  const planStatus = flur.boardError
+    ? "Nicht erreichbar"
+    : hasUntis(flur.settings)
+      ? flur.settings.schoolLabel.trim() || flur.settings.school.trim() || "WebUntis"
+      : flur.serverUntis
+        ? flur.profile?.school || "Über den Server"
+        : "Beispieltag";
+  const routeStatus =
+    hasRoute(flur.settings) || !flur.exampleRoute
+      ? `${flur.route.station || "Bahnhof"} · ${MODE_LABEL[flur.route.mode]}`
+      : "Beispielweg";
+
+  if (!flur.hydrated) {
+    return <div className="min-h-dvh" />;
+  }
+
+  if (!flur.settings.onboarded || setupStep) {
+    return (
+      <Setup
+        step={setupStep ?? "welcome"}
+        settings={flur.settings}
+        profile={flur.profile}
+        onStep={setSetupStep}
+        onDone={(next) => {
+          flur.setSettings({ ...next, onboarded: true });
+          setSetupStep(null);
+          setView("heute");
+        }}
+        onClose={flur.settings.onboarded ? () => setSetupStep(null) : undefined}
+      />
+    );
+  }
 
   return (
     <div className="flur-page min-h-dvh text-paper">
@@ -550,21 +586,47 @@ export function Board() {
             </div>
 
             <section className="order-4 rounded-board border border-line bg-panel p-3 md:p-4 lg:sticky lg:top-6 lg:order-none">
-              <h2 className="px-2 pt-1 text-sm text-mist">Stunden</h2>
-              {lessons.length === 0 ? (
-                <p className="px-2 py-6 text-pretty text-mist">Keine Stunden. Frei, Ferien oder noch nichts eingetragen.</p>
+              <div className="flex items-center justify-between gap-2 px-2 pt-1">
+                <h2 className="text-sm text-mist">{shifted && selectedIso ? formatDay(selectedIso) : "Stunden"}</h2>
+                <div className="flex">
+                  <button
+                    type="button"
+                    aria-label="Voriger Tag"
+                    className="flex size-11 items-center justify-center rounded-xl text-paper disabled:opacity-40"
+                    disabled={dayShift <= -7}
+                    onClick={() => setDayShift((value) => value - 1)}
+                  >
+                    <ChevronLeft className="size-5" aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Nächster Tag"
+                    className="flex size-11 items-center justify-center rounded-xl text-paper disabled:opacity-40"
+                    disabled={dayShift >= 13}
+                    onClick={() => setDayShift((value) => value + 1)}
+                  >
+                    <ChevronRight className="size-5" aria-hidden="true" />
+                  </button>
+                </div>
+              </div>
+              {listLessons.length === 0 ? (
+                <p className="px-2 py-6 text-pretty text-mist">
+                  {shifted && flur.deskLoading
+                    ? "Wird geladen …"
+                    : "Keine Stunden. Frei, Ferien oder noch nichts eingetragen."}
+                </p>
               ) : (
                 <ol className="mt-1">
                   {breaks.map((row) =>
                     row.kind === "lesson" ? (
-                      <LessonRow key={row.lesson.id} lesson={row.lesson} minutes={lookingAtToday ? minutes : null} />
+                      <LessonRow key={row.lesson.id} lesson={row.lesson} minutes={listMinutes} />
                     ) : (
                       <BreakRow key={`break-${row.at}`} minutes={row.minutes} />
                     ),
                   )}
                 </ol>
               )}
-              {(schoolOver || !lookingAtToday) && flur.tomorrow.lessons.length > 0 ? (
+              {!shifted && (schoolOver || !lookingAtToday) && flur.tomorrow.lessons.length > 0 ? (
                 <div className="mt-2 border-t border-line px-2 pt-4">
                   <h3 className="text-sm text-mist">Morgen</h3>
                   <ul className="mt-1">
@@ -576,6 +638,21 @@ export function Board() {
               ) : null}
             </section>
           </div>
+        ) : null}
+
+        {view === "woche" ? (
+          <WeekView
+            desk={flur.desk}
+            now={flur.now}
+            loading={flur.deskLoading}
+            error={flur.deskError}
+            fromCache={flur.deskFromCache}
+            onExport={exportCalendar}
+          />
+        ) : null}
+
+        {view === "schule" ? (
+          <SchoolView desk={flur.desk} loading={flur.deskLoading} error={flur.deskError} fromCache={flur.deskFromCache} />
         ) : null}
 
         {view === "wege" ? (
@@ -648,152 +725,137 @@ export function Board() {
         ) : null}
 
         {view === "setup" ? (
-          <form
-            className="mx-auto max-w-2xl space-y-5"
-            onSubmit={(event) => {
-              event.preventDefault();
-              flur.setSettings(draft);
-              setView("heute");
-            }}
-          >
-            <div>
-              <h2 className="font-display text-4xl">Einstellungen</h2>
-              <p className="mt-2 text-pretty text-mist">
-                Zugangsdaten bleiben auf diesem Bildschirm. Am HDMI-Gerät lieber die Server-Variablen setzen, dann
-                muss hier nichts eingetippt werden.
-              </p>
-              {flur.profile?.webuntis ? (
-                <p className="mt-3 text-sm text-chalk">Server ist schon mit {flur.profile.school} verbunden.</p>
-              ) : null}
-            </div>
+          <div className="mx-auto max-w-lg">
+            <h2 className="font-display text-4xl">Einstellungen</h2>
+            <p className="mt-2 text-pretty text-mist">Plan und Weg. Die Tafel selbst bleibt unverändert.</p>
 
-            <fieldset className="space-y-3 rounded-board border border-line bg-panel p-5">
-              <legend className="bg-panel px-2 text-sm text-mist">WebUntis</legend>
-              <Field label="Server">
-                <input
-                  className="flur-field"
-                  value={draft.baseUrl}
-                  onChange={(event) => setDraft({ ...draft, baseUrl: event.target.value })}
-                  placeholder="mese.webuntis.com"
-                  autoComplete="off"
-                />
-              </Field>
-              <Field label="Schule">
-                <input
-                  className="flur-field"
-                  value={draft.school}
-                  onChange={(event) => setDraft({ ...draft, school: event.target.value })}
-                  autoComplete="organization"
-                />
-              </Field>
-              <Field label="Benutzer">
-                <input
-                  className="flur-field"
-                  value={draft.user}
-                  onChange={(event) => setDraft({ ...draft, user: event.target.value })}
-                  autoComplete="username"
-                />
-              </Field>
-              <Field label="Passwort">
-                <input
-                  className="flur-field"
-                  type="password"
-                  value={draft.password}
-                  onChange={(event) => setDraft({ ...draft, password: event.target.value })}
-                  autoComplete="current-password"
-                />
-              </Field>
-              <Field label="Plan von">
-                <select
-                  className="flur-field"
-                  value={draft.who}
-                  onChange={(event) =>
-                    setDraft({
-                      ...draft,
-                      who:
-                        event.target.value === "class" || event.target.value === "teacher"
-                          ? event.target.value
-                          : "student",
-                    })
-                  }
-                >
-                  <option value="student">Schülerkonto</option>
-                  <option value="class">Klasse</option>
-                  <option value="teacher">Lehrkraft</option>
-                </select>
-              </Field>
-              {draft.who !== "student" ? (
-                <Field label={draft.who === "class" ? "Klasse" : "Kürzel"}>
-                  <input
-                    className="flur-field"
-                    value={draft.whoName}
-                    onChange={(event) => setDraft({ ...draft, whoName: event.target.value })}
-                  />
-                </Field>
-              ) : null}
-            </fieldset>
-
-            <fieldset className="space-y-3 rounded-board border border-line bg-panel p-5">
-              <legend className="bg-panel px-2 text-sm text-mist">Weg</legend>
-              <Field label="Heimatadresse">
-                <input
-                  className="flur-field"
-                  value={draft.homeAddress}
-                  onChange={(event) => setDraft({ ...draft, homeAddress: event.target.value })}
-                  autoComplete="street-address"
-                />
-              </Field>
-              <Field label="Bahnhof">
-                <input
-                  className="flur-field"
-                  value={draft.station}
-                  onChange={(event) => setDraft({ ...draft, station: event.target.value })}
-                  placeholder="Köln Süd"
-                />
-              </Field>
-              <Field label="Halt an der Schule">
-                <input
-                  className="flur-field"
-                  value={draft.schoolStop}
-                  onChange={(event) => setDraft({ ...draft, schoolStop: event.target.value })}
-                  placeholder="Köln Hbf"
-                />
-              </Field>
-              <ModeSwitch mode={draft.mode} onChange={(mode) => setDraft({ ...draft, mode })} />
-            </fieldset>
-
-            <label className="flex min-h-12 items-center gap-3 rounded-board border border-line bg-panel px-5 py-4">
-              <input
-                type="checkbox"
-                className="size-5 accent-chalk"
-                checked={draft.kioskRotate}
-                onChange={(event) => setDraft({ ...draft, kioskRotate: event.target.checked })}
-              />
-              <span>Am Bildschirm automatisch zwischen Heute, Hinweg und Heimweg wechseln</span>
-            </label>
-
-            <div className="flex flex-wrap gap-3">
-              <button type="submit" className="h-12 rounded-xl bg-chalk px-5 font-medium text-chalk-ink">
-                Speichern
+            <div className="mt-6 overflow-hidden rounded-board border border-line bg-panel">
+              <button
+                type="button"
+                onClick={() => setSetupStep("school")}
+                className="flex w-full items-center justify-between gap-4 border-b border-line px-4 py-4 text-left"
+              >
+                <span className="min-w-0">
+                  <span className="block font-medium">Stundenplan</span>
+                  <span className="mt-0.5 block truncate text-sm text-mist">{planStatus}</span>
+                </span>
+                <ChevronRight className="size-4 shrink-0 text-mist" aria-hidden="true" />
               </button>
               <button
                 type="button"
-                className="h-12 rounded-xl border border-line px-5 transition-colors hover:border-chalk"
-                onClick={() => {
-                  flur.resetSettings();
-                  setDraft(emptySettings());
-                }}
+                onClick={() => setSetupStep("route")}
+                className="flex w-full items-center justify-between gap-4 px-4 py-4 text-left"
               >
-                Zurück zum Beispiel
+                <span className="min-w-0">
+                  <span className="block font-medium">Weg</span>
+                  <span className="mt-0.5 block truncate text-sm text-mist">{routeStatus}</span>
+                </span>
+                <ChevronRight className="size-4 shrink-0 text-mist" aria-hidden="true" />
               </button>
-              <Link
-                to="/uhr"
-                className="flex h-12 items-center rounded-xl border border-line px-5 transition-colors hover:border-chalk"
-              >
-                Uhrenansicht
-              </Link>
             </div>
-          </form>
+
+            <button
+              type="button"
+              onClick={() => setView("post")}
+              className="mt-4 flex w-full items-center justify-between rounded-board border border-line bg-panel px-4 py-4 text-left"
+            >
+              <span>
+                <span className="flex items-center gap-2 font-medium">
+                  <Mail className="size-4 text-chalk" aria-hidden="true" />
+                  Morgenpost
+                </span>
+                <span className="mt-0.5 block text-sm text-mist">Tageszettel zum Kopieren</span>
+              </span>
+              <ChevronRight className="size-4 text-mist" aria-hidden="true" />
+            </button>
+
+            <button
+              type="button"
+              onClick={exportCalendar}
+              disabled={!flur.desk}
+              className="mt-4 flex w-full items-center justify-between rounded-board border border-line bg-panel px-4 py-4 text-left disabled:opacity-40"
+            >
+              <span>
+                <span className="block font-medium">Kalenderdatei</span>
+                <span className="mt-0.5 block text-sm text-mist">Stunden und Prüfungen als .ics</span>
+              </span>
+              <ChevronRight className="size-4 text-mist" aria-hidden="true" />
+            </button>
+
+            <div className="mt-4 overflow-hidden rounded-board border border-line bg-panel">
+              <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-4">
+                <span>
+                  <span className="block font-medium">Konten auf diesem Gerät</span>
+                  <span className="mt-0.5 block text-sm text-mist">Wechsel zwischen Schule und Kind. Nichts verlässt das Gerät.</span>
+                </span>
+              </div>
+              {profiles.map((profile) => (
+                <div key={profile.id} className="flex items-center gap-2 border-b border-line px-4 py-2">
+                  <button
+                    type="button"
+                    className="min-w-0 flex-1 py-2 text-left"
+                    onClick={() => flur.setSettings(profile.settings)}
+                  >
+                    <span className="block truncate font-medium">{profile.name}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="h-11 px-2 text-sm text-mist"
+                    onClick={() => setProfiles(forgetProfile(profile.id))}
+                  >
+                    Entfernen
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                className="h-12 w-full px-4 text-left text-sm font-medium text-chalk disabled:opacity-40"
+                disabled={!hasUntis(flur.settings)}
+                onClick={() => setProfiles(rememberProfile(flur.settings))}
+              >
+                Dieses Konto sichern
+              </button>
+            </div>
+
+            <label className="mt-4 flex items-center gap-4 rounded-board border border-line bg-panel px-4 py-4">
+              <span className="min-w-0 flex-1">
+                <span className="block font-medium">Automatisch wechseln</span>
+                <span className="mt-1 block text-sm text-pretty text-mist">Heute, Hinweg und Heimweg im Wechsel.</span>
+              </span>
+              <input
+                type="checkbox"
+                className="apple-switch"
+                checked={flur.settings.kioskRotate}
+                onChange={(event) => flur.setSettings({ ...flur.settings, kioskRotate: event.target.checked })}
+              />
+            </label>
+
+            <Link
+              to="/uhr"
+              className="mt-4 flex items-center justify-between rounded-board border border-line bg-panel px-4 py-4"
+            >
+              <span>
+                <span className="block font-medium">Uhrenansicht</span>
+                <span className="mt-0.5 block text-sm text-mist">Nur Uhr, Stunde und Zug</span>
+              </span>
+              <ChevronRight className="size-4 text-mist" aria-hidden="true" />
+            </Link>
+
+            <button
+              type="button"
+              className="mt-6 h-12 text-sm font-medium text-chalk"
+              onClick={() => setSetupStep("welcome")}
+            >
+              Einrichtung wiederholen
+            </button>
+            <button
+              type="button"
+              className="h-11 text-sm font-medium text-mist"
+              onClick={() => flur.resetSettings()}
+            >
+              Beispieltag laden
+            </button>
+          </div>
         ) : null}
       </main>
 

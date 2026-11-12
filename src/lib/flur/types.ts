@@ -63,11 +63,22 @@ export type ServerProfile = {
   whoName: string;
 };
 
+export type LoginKind = "password" | "secret";
+
+export type SchoolMatch = {
+  displayName: string;
+  loginName: string;
+  server: string;
+  address: string;
+};
+
 export type Settings = {
   baseUrl: string;
   school: string;
+  schoolLabel: string;
   user: string;
   password: string;
+  login: LoginKind;
   who: Who;
   whoName: string;
   homeAddress: string;
@@ -75,6 +86,7 @@ export type Settings = {
   schoolStop: string;
   mode: Mode;
   kioskRotate: boolean;
+  onboarded: boolean;
 };
 
 export const MODE_LABEL: Record<Mode, string> = {

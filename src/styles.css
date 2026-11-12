@@ -1,8 +1,54 @@
 @import "tailwindcss";
 
-@theme {
+:root {
+  color-scheme: dark;
+  --canvas: #14110d;
+  --card: #1d1914;
+  --fill: rgb(226 177 90 / 12%);
+  --label: #f3efe4;
+  --secondary: #a39888;
+  --tertiary: #7d7366;
+  --separator: #3a3228;
+  --accent: #e2b15a;
+  --on-accent: #24180a;
+  --danger: #d46a52;
+  --signal: #e2b15a;
+  --signal-bad: #d46a52;
+  --idle: #a39888;
+  --track: #3a3228;
+  --soon: #8a6840;
+  --now: rgb(226 177 90 / 14%);
+  --seg: #2a241c;
+  --dock: rgb(20 17 13 / 78%);
+  --dock-edge: rgb(226 177 90 / 38%);
+  --shadow-card:
+    0 0 0 1px rgb(226 177 90 / 16%),
+    0 16px 36px rgb(0 0 0 / 28%);
+  --shadow-card-hover: 0 0 0 1px rgb(226 177 90 / 40%), 0 16px 36px rgb(0 0 0 / 32%);
+  --shadow-seg: none;
+}
+
+@theme inline {
   --font-sans: "Outfit", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Fraunces", Georgia, "Times New Roman", serif;
+  --radius-board: 1.25rem;
+  --color-canvas: var(--canvas);
+  --color-card: var(--card);
+  --color-fill: var(--fill);
+  --color-label: var(--label);
+  --color-secondary: var(--secondary);
+  --color-tertiary: var(--tertiary);
+  --color-separator: var(--separator);
+  --color-accent: var(--accent);
+  --color-on-accent: var(--on-accent);
+  --color-danger: var(--danger);
+  --color-signal: var(--signal);
+  --color-signal-bad: var(--signal-bad);
+  --color-idle: var(--idle);
+  --color-track: var(--track);
+  --color-soon: var(--soon);
+  --color-now: var(--now);
+  --color-seg: var(--seg);
   --color-ink: #14110d;
   --color-panel: #1d1914;
   --color-line: #3a3228;
@@ -11,12 +57,10 @@
   --color-chalk: #e2b15a;
   --color-chalk-ink: #24180a;
   --color-rust: #d46a52;
-  --radius-board: 1.25rem;
 }
 
 @layer base {
   html {
-    color-scheme: dark;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
@@ -25,9 +69,9 @@
     margin: 0;
     min-height: 100dvh;
     background:
-      radial-gradient(720px 280px at 12% -8%, rgb(226 177 90 / 14%), transparent 62%),
-      var(--color-ink);
-    color: var(--color-paper);
+      radial-gradient(720px 280px at 12% -8%, rgb(226 177 90 / 16%), transparent 62%),
+      var(--canvas);
+    color: var(--label);
     font-family: var(--font-sans);
   }
 
@@ -37,20 +81,168 @@
   }
 
   :focus-visible {
-    outline: 2px solid var(--color-chalk);
+    outline: 2px solid var(--accent);
     outline-offset: 3px;
   }
 
   ::selection {
-    background: var(--color-chalk);
-    color: var(--color-chalk-ink);
+    background: var(--accent);
+    color: var(--on-accent);
   }
 }
 
 @layer components {
+  .font-display,
+  .apple-figure,
+  .apple-time {
+    font-family: var(--font-display);
+    font-optical-sizing: auto;
+    font-variant-numeric: tabular-nums lining-nums;
+  }
+
   .font-display {
     font-weight: 560;
-    font-optical-sizing: auto;
+    letter-spacing: -0.02em;
+  }
+
+  .apple-figure,
+  .apple-time {
+    font-weight: 560;
+    letter-spacing: -0.03em;
+    line-height: 0.95;
+  }
+
+  .apple-card {
+    border-radius: 1.25rem;
+    background: var(--card);
+    box-shadow: var(--shadow-card);
+  }
+
+  .apple-card-btn {
+    transition:
+      transform 180ms ease,
+      box-shadow 180ms ease;
+  }
+
+  .apple-card-btn:hover {
+    box-shadow: var(--shadow-card-hover);
+  }
+
+  .apple-card-btn:active {
+    transform: scale(0.985);
+  }
+
+  .apple-seg {
+    display: grid;
+    gap: 2px;
+    padding: 3px;
+    border-radius: 0.9rem;
+    background: var(--fill);
+  }
+
+  .apple-seg > button,
+  .apple-seg > a {
+    display: flex;
+    min-height: 2.75rem;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    border-radius: 0.7rem;
+    padding-inline: 0.75rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--label);
+    transition:
+      background 180ms ease,
+      color 180ms ease;
+  }
+
+  .apple-seg > button[aria-checked="true"],
+  .apple-seg > button[aria-selected="true"],
+  .apple-seg > button[aria-current="page"] {
+    background: var(--accent);
+    color: var(--on-accent);
+  }
+
+  .apple-btn {
+    display: inline-flex;
+    min-height: 3rem;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    border-radius: 0.875rem;
+    padding-inline: 1.15rem;
+    background: var(--accent);
+    color: var(--on-accent);
+    font-size: 1rem;
+    font-weight: 600;
+  }
+
+  .apple-btn:active {
+    transform: scale(0.98);
+  }
+
+  .apple-btn-plain {
+    background: transparent;
+    color: var(--label);
+    box-shadow: inset 0 0 0 1px var(--separator);
+  }
+
+  .apple-switch {
+    position: relative;
+    width: 3.2rem;
+    height: 1.95rem;
+    flex-shrink: 0;
+    appearance: none;
+    border-radius: 999px;
+    background: var(--separator);
+    transition: background 180ms ease;
+  }
+
+  .apple-switch::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 1.7rem;
+    height: 1.7rem;
+    border-radius: 999px;
+    background: var(--label);
+    box-shadow: 0 2px 6px rgb(0 0 0 / 28%);
+    transition: transform 180ms ease;
+  }
+
+  .apple-switch:checked {
+    background: var(--accent);
+  }
+
+  .apple-switch:checked::after {
+    background: var(--on-accent);
+    transform: translateX(1.25rem);
+  }
+
+  .setup-step {
+    animation: setup-in 240ms ease-out;
+  }
+
+  .flur-field {
+    height: 3rem;
+    width: 100%;
+    border-radius: 0.75rem;
+    border: 1px solid var(--separator);
+    background: var(--canvas);
+    padding-inline: 0.85rem;
+    font-size: 1rem;
+    color: var(--label);
+    outline: none;
+  }
+
+  .flur-field:focus {
+    border-color: var(--accent);
+  }
+
+  .flur-field::placeholder {
+    color: var(--secondary);
   }
 
   .flur-page {
@@ -64,34 +256,32 @@
     left: max(0.75rem, env(safe-area-inset-left));
     z-index: 30;
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 0.15rem;
     padding: 0.3rem;
-    border: 1px solid rgb(226 177 90 / 22%);
-    border-radius: 1.35rem;
-    background: rgb(20 17 13 / 78%);
-    box-shadow: 0 18px 40px rgb(0 0 0 / 38%);
-    backdrop-filter: blur(18px) saturate(1.2);
+    border-radius: 1.7rem;
+    background: var(--dock);
+    box-shadow:
+      inset 0 0.5px 0 var(--dock-edge),
+      0 18px 40px rgb(0 0 0 / 38%);
+    backdrop-filter: blur(22px) saturate(1.3);
   }
+}
 
-  .flur-field {
-    height: 3rem;
-    width: 100%;
-    border-radius: 0.75rem;
-    border: 1px solid var(--color-line);
-    background: var(--color-ink);
-    padding-inline: 0.85rem;
-    font-size: 1rem;
-    color: var(--color-paper);
-    outline: none;
+@keyframes setup-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
   }
-
-  .flur-field:focus {
-    border-color: var(--color-chalk);
+  to {
+    opacity: 1;
+    transform: none;
   }
+}
 
-  .flur-field::placeholder {
-    color: var(--color-mist);
+@media (prefers-reduced-motion: reduce) {
+  .setup-step {
+    animation: none;
   }
 }
 

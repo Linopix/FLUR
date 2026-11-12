@@ -1,4 +1,4 @@
-import type { Mode, Settings, Who } from "@/lib/flur/types";
+import type { LoginKind, Mode, Settings, Who } from "@/lib/flur/types";
 
 const KEY = "flur.settings.v1";
 
@@ -6,8 +6,10 @@ export function emptySettings(): Settings {
   return {
     baseUrl: "",
     school: "",
+    schoolLabel: "",
     user: "",
     password: "",
+    login: "password",
     who: "student",
     whoName: "",
     homeAddress: "",
@@ -15,11 +17,16 @@ export function emptySettings(): Settings {
     schoolStop: "",
     mode: "bike",
     kioskRotate: false,
+    onboarded: false,
   };
 }
 
 function asWho(value: unknown): Who {
   return value === "class" || value === "teacher" || value === "student" ? value : "student";
+}
+
+function asLogin(value: unknown): LoginKind {
+  return value === "secret" ? "secret" : "password";
 }
 
 function asMode(value: unknown): Mode {
@@ -37,8 +44,11 @@ export function loadSettings(): Settings {
       ...parsed,
       who: asWho(parsed.who),
       mode: asMode(parsed.mode),
+      login: asLogin(parsed.login),
+      schoolLabel: typeof parsed.schoolLabel === "string" ? parsed.schoolLabel : "",
       kioskRotate: Boolean(parsed.kioskRotate),
       password: typeof parsed.password === "string" ? parsed.password : "",
+      onboarded: parsed.onboarded === true,
     };
   } catch {
     return emptySettings();
