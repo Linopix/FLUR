@@ -23,7 +23,7 @@ import { Setup, type SetupStep } from "@/components/flur/setup";
 import { useFlur } from "@/components/flur/use-flur";
 import { WeekView } from "@/components/flur/week";
 import { DEMO_LESSONS, lessonSpan } from "@/lib/flur/demo";
-import { daysBetween, downloadIcs, nextOpenDay, toIcs } from "@/lib/flur/desk";
+import { daysBetween, downloadIcs, nextCountdown, nextOpenDay, toIcs } from "@/lib/flur/desk";
 import { forgetProfile, loadProfiles, rememberProfile, type LocalProfile } from "@/lib/flur/profiles";
 import { hasRoute, hasUntis } from "@/lib/flur/settings";
 import { MODE_HINT, MODE_LABEL, type Lesson, type Mode, type TripLeg, type TripPlan } from "@/lib/flur/types";
@@ -77,6 +77,18 @@ function splitDay(label: string) {
   const comma = label.indexOf(",");
   if (comma === -1) return { weekday: label, rest: "" };
   return { weekday: label.slice(0, comma), rest: label.slice(comma + 1).trim() };
+}
+
+function formatRemain(ms: number): string {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const days = Math.floor(total / 86400);
+  const hours = Math.floor((total % 86400) / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const seconds = total % 60;
+  const clock = [hours, minutes, seconds].map((part) => String(part).padStart(2, "0")).join(":");
+  if (days > 0) return `${days} T ${clock}`;
+  if (hours > 0) return `${hours}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
 function heroClock(kind: "now" | "next" | "tomorrow", lesson: Lesson, minutes: number | null) {
@@ -375,6 +387,15 @@ export function Board() {
   const schoolOver = lookingAtToday && minutes != null && !todayFocus && Boolean(tomorrowFirst);
   const changes = lessons.filter((lesson) => lesson.status !== "regular");
   const clock = focus ? heroClock(focus.kind, focus.lesson, minutes) : null;
+  const countdownDays =
+    flur.desk?.days.length
+      ? flur.desk.days
+      : [
+          flur.today.iso ? { iso: flur.today.iso, lessons } : null,
+          flur.tomorrow.iso ? { iso: flur.tomorrow.iso, lessons: flur.tomorrow.lessons } : null,
+        ].filter((day): day is { iso: string; lessons: Lesson[] } => Boolean(day?.iso));
+  const countdown = flur.settings.countdown && flur.now ? nextCountdown(flur.now, countdownDays) : null;
+  const remain = countdown && flur.now ? formatRemain(countdown.at - flur.now.getTime()) : "";
   const todayIso = flur.now ? berlinParts(flur.now).iso : "";
   const selectedIso = todayIso ? addDaysIso(todayIso, dayShift) : "";
   const shifted = dayShift !== 0;
@@ -599,7 +620,14 @@ export function Board() {
               <section className="order-1 rounded-board border border-line bg-panel p-5 md:p-6">
                 <div className="flex items-end justify-between gap-4">
                   <p className="text-sm font-medium text-chalk">{kicker}</p>
-                  {clock ? (
+                  {countdown ? (
+                    <p className="text-right leading-none">
+                      <span className="block font-display text-4xl tabular-nums md:text-5xl">{remain}</span>
+                      <span className="mt-1 block text-sm text-mist">
+                        {countdown.phase === "end" ? `${countdown.subject} endet` : `bis ${countdown.subject}`}
+                      </span>
+                    </p>
+                  ) : clock ? (
                     <p className="text-right leading-none">
                       <span className="block font-display text-5xl tabular-nums md:text-6xl">{clock.value}</span>
                       <span className="mt-1 block text-sm text-mist">{clock.unit}</span>
@@ -929,6 +957,21 @@ export function Board() {
                 Dieses Konto sichern
               </button>
             </div>
+
+            <label className="mt-4 flex items-center gap-4 rounded-board border border-line bg-panel px-4 py-4">
+              <span className="min-w-0 flex-1">
+                <span className="block font-medium">Countdown</span>
+                <span className="mt-1 block text-sm text-pretty text-mist">
+                  Auf der Startseite bis zur nächsten Stunde zählen, auch wenn es noch Tage sind.
+                </span>
+              </span>
+              <input
+                type="checkbox"
+                className="apple-switch"
+                checked={flur.settings.countdown}
+                onChange={(event) => flur.setSettings({ ...flur.settings, countdown: event.target.checked })}
+              />
+            </label>
 
             <label className="mt-4 flex items-center gap-4 rounded-board border border-line bg-panel px-4 py-4">
               <span className="min-w-0 flex-1">

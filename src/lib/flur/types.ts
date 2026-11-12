@@ -88,6 +88,7 @@ export type Settings = {
   schoolAddress: string;
   mode: Mode;
   kioskRotate: boolean;
+  countdown: boolean;
   onboarded: boolean;
 };
 

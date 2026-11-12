@@ -8,8 +8,8 @@ Eine offizielle Untis-App für den Mac gibt es nicht. FLUR ist der Ersatz: diese
 
 | Untis Mobile | FLUR |
 | --- | --- |
-| Heute, mit laufender Stunde | Heute, Uhr und nächste Stunde. Pfeile blättern durch die Tage. |
-| Woche | Woche, diese und die nächste. Am Mac und am breiten Bildschirm als Spalten. |
+| Heute, mit laufender Stunde | Heute, Uhr und nächste Stunde. Der Countdown auf der Startseite läuft auch über Tage, abschaltbar unter Mehr. |
+| Woche | Woche, diese und die nächsten. Fach antippen zeigt die anderen Termine dazu, auch Prüfungen. Am Mac und am breiten Bildschirm als Spalten. |
 | Vertretungen und Entfall | Änderungen aus dem eigenen Plan, sechs Wochen voraus. Fremde Klassen bleiben draußen. |
 | Prüfungen | Prüfungen, wenn die Schule sie über die Schnittstelle freigibt. |
 | Hausaufgaben | Hausaufgaben. Abhaken gilt nur auf diesem Gerät. |
@@ -34,6 +34,7 @@ Untis Mobile spricht mit einer anderen, nicht öffentlichen Schnittstelle. Ohne 
 - **Noten.**
 - **Freie Räume** für die ganze Schule.
 - **Klassenbuch schreiben**, Entschuldigungen einreichen, Krankmeldungen abschicken.
+- **Eigenes FLUR-Konto** und Better Auth. Die Schule bleibt auf dem Gerät. Es gibt keine Anmeldung bei FLUR.
 - **Live-Stau.** Öffentliche Kartendienste ohne Schlüssel kennen die Straßenzeit, nicht die aktuelle Schlange. Nur Auto zeigt deshalb „Fahrzeit“, nicht „Stau“.
 - **Mitteilungszentrale-Widgets** auf dem Mac. Die brauchen eine signierte App aus Xcode. Stattdessen liegt ein Symbol in der Menüleiste: Stunde, Vertretung und Zugverspätung, ohne das Fenster zu öffnen.
 

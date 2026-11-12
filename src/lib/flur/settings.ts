@@ -18,6 +18,7 @@ export function emptySettings(): Settings {
     schoolAddress: "",
     mode: "bike",
     kioskRotate: false,
+    countdown: true,
     onboarded: false,
   };
 }
@@ -56,6 +57,7 @@ export function loadSettings(): Settings {
       schoolLabel: typeof parsed.schoolLabel === "string" ? parsed.schoolLabel : "",
       schoolAddress: typeof parsed.schoolAddress === "string" ? parsed.schoolAddress : "",
       kioskRotate: Boolean(parsed.kioskRotate),
+      countdown: parsed.countdown !== false,
       password: typeof parsed.password === "string" ? parsed.password : "",
       onboarded: parsed.onboarded === true,
     };

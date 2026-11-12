@@ -1,32 +1,34 @@
-import { genericOAuthClient } from "better-auth/client/plugins";
-import { createAuthClient } from "better-auth/react";
 import { runPreSignInSignOut, runSignOut } from "../../../scripts/sign-out-plan.mjs";
 import { GROK_PROVIDERS } from "./providers";
 
 /**
- * Better Auth client for this React SPA (browser-side).
- *
- * Talks to this app's OWN Better Auth at same-origin `/api/auth/*`. In the live
- * preview the app is an embedded iframe with PARTITIONED cookies, so after a
- * popup sign-in it can't read the session cookie — it authenticates with a
- * bearer token instead (captured from the popup, see `signIn`). The `onRequest`
- * hook attaches that token when present; when deployed (cookie auth) no token
- * is stored, so nothing changes.
- *
- * To sign out call `signOut()` below, NOT `authClient.signOut()`: the raw call
- * leaves the bearer token in place, and `onRequest` keeps re-attaching it, so
- * the visitor stays signed in.
+ * FLUR does not sign anyone in. This stand-in keeps the old call shape so the
+ * unused gates still typecheck, without the Better Auth client.
  */
-export const authClient = createAuthClient({
-  plugins: [genericOAuthClient()],
-  fetchOptions: {
-    onRequest(ctx) {
-      const token = getBearerToken();
-      if (token) ctx.headers.set("Authorization", `Bearer ${token}`);
-      return ctx;
+type AuthError = { message: string } | null;
+
+type SessionUser = { id: string; name?: string | null; email?: string | null; image?: string | null };
+
+export const authClient = {
+  useSession() {
+    return { data: null as { user: SessionUser } | null, isPending: false };
+  },
+  async getSession() {
+    return { data: null, error: null as AuthError };
+  },
+  async signOut(): Promise<{ error: AuthError }> {
+    return { error: null };
+  },
+  signIn: {
+    async oauth2(_input?: {
+      providerId?: string;
+      callbackURL?: string;
+      errorCallbackURL?: string;
+    }): Promise<{ data: { url?: string } | null; error: AuthError }> {
+      return { data: null, error: { message: "FLUR hat kein Konto." } };
     },
   },
-});
+};
 
 /**
  * True when sign-in UI should be shown — i.e. whenever `VITE_AUTH_ENABLED` is

@@ -1,5 +1,5 @@
 import { DEMO_LESSONS } from "./demo.ts";
-import { addDaysIso, berlinParts, formatMinutes, untisTimeToMinutes, ymdToIso } from "./time.ts";
+import { addDaysIso, berlinInstant, berlinParts, formatMinutes, untisTimeToMinutes, ymdToIso } from "./time.ts";
 import type { Lesson } from "./types.ts";
 
 export type ExamItem = {
@@ -119,6 +119,34 @@ export function nextOpenDay(days: DeskDay[], fromIso: string): DeskDay | null {
     if (day.lessons.some((lesson) => lesson.status !== "cancelled")) return day;
   }
   return null;
+}
+
+export type CountdownHit = {
+  at: number;
+  subject: string;
+  phase: "start" | "end";
+  iso: string;
+};
+
+/** Next lesson start, however far away. Falls back to the end of a lesson already running. */
+export function nextCountdown(now: Date, days: DeskDay[]): CountdownHit | null {
+  const nowMs = now.getTime();
+  const today = berlinParts(now).iso;
+  let running: CountdownHit | null = null;
+  for (const day of days) {
+    if (day.iso < today) continue;
+    const lessons = [...day.lessons].sort((a, b) => a.startMin - b.startMin);
+    for (const lesson of lessons) {
+      if (lesson.status === "cancelled") continue;
+      const start = berlinInstant(day.iso, lesson.startMin);
+      const end = berlinInstant(day.iso, lesson.endMin);
+      if (nowMs >= start && nowMs < end) {
+        running = { at: end, subject: lesson.subject, phase: "end", iso: day.iso };
+      }
+      if (start > nowMs) return { at: start, subject: lesson.subject, phase: "start", iso: day.iso };
+    }
+  }
+  return running;
 }
 
 export function mondayOf(iso: string): string {

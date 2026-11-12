@@ -28,6 +28,23 @@ export function berlinParts(date = new Date()) {
   };
 }
 
+/** Absolute time of a Berlin wall-clock on a calendar day. */
+export function berlinInstant(iso: string, minutes: number): number {
+  const [year, month, day] = iso.split("-").map(Number);
+  const hour = Math.floor(minutes / 60);
+  const minute = ((minutes % 60) + 60) % 60;
+  let utc = Date.UTC(year || 1970, (month || 1) - 1, day || 1, hour, minute);
+  for (let pass = 0; pass < 3; pass += 1) {
+    const seen = berlinParts(new Date(utc));
+    const seenUtc = Date.UTC(seen.year, seen.month - 1, seen.day, seen.hour, seen.minute);
+    const wantUtc = Date.UTC(year || 1970, (month || 1) - 1, day || 1, hour, minute);
+    const delta = wantUtc - seenUtc;
+    if (delta === 0) break;
+    utc += delta;
+  }
+  return utc;
+}
+
 export function addDaysIso(iso: string, days: number): string {
   const [year, month, day] = iso.split("-").map(Number);
   const date = new Date(Date.UTC(year ?? 1970, (month ?? 1) - 1, (day ?? 1) + days));

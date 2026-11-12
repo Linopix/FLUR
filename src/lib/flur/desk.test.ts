@@ -5,6 +5,7 @@ import {
   daysBetween,
   mergeChanges,
   mondayOf,
+  nextCountdown,
   nextOpenDay,
   noteFor,
   parseAbsences,
@@ -15,6 +16,29 @@ import {
   toIcs,
   weekdayShort,
 } from "./desk.ts";
+import { berlinInstant, formatClock } from "./time.ts";
+
+test("countdown reaches the next real lesson even days later", () => {
+  assert.equal(formatClock(new Date(berlinInstant("2026-11-12", 8 * 60))), "08:00");
+  const lesson = {
+    id: "1",
+    startMin: 8 * 60,
+    endMin: 8 * 60 + 45,
+    subject: "Deutsch",
+    teacher: "",
+    originalTeacher: "",
+    room: "",
+    info: "",
+    status: "regular" as const,
+  };
+  const hit = nextCountdown(new Date(berlinInstant("2026-11-12", 20 * 60)), [
+    { iso: "2026-11-12", lessons: [] },
+    { iso: "2026-11-23", lessons: [lesson] },
+  ]);
+  assert.equal(hit?.subject, "Deutsch");
+  assert.equal(hit?.phase, "start");
+  assert.equal(hit?.at, berlinInstant("2026-11-23", 8 * 60));
+});
 
 test("monday of a Thursday in November 2026", () => {
   assert.equal(mondayOf("2026-11-12"), "2026-11-09");

@@ -821,6 +821,20 @@ export function Setup({
             </dl>
             <label className="mt-4 flex items-center gap-4 rounded-board border border-line bg-panel px-4 py-4">
               <span className="min-w-0 flex-1">
+                <span className="block font-medium">Countdown</span>
+                <span className="mt-1 block text-sm text-pretty text-mist">
+                  Auf Heute bis zur nächsten Stunde zählen, egal wie lange es dauert.
+                </span>
+              </span>
+              <input
+                type="checkbox"
+                className="apple-switch"
+                checked={draft.countdown}
+                onChange={(event) => setDraft({ ...draft, countdown: event.target.checked })}
+              />
+            </label>
+            <label className="mt-4 flex items-center gap-4 rounded-board border border-line bg-panel px-4 py-4">
+              <span className="min-w-0 flex-1">
                 <span className="block font-medium">Automatisch wechseln</span>
                 <span className="mt-1 block text-sm text-pretty text-mist">Heute, Hinweg und Heimweg im Wechsel.</span>
               </span>
