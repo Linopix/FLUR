@@ -2,8 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   demoDesk,
+  daysBetween,
   mergeChanges,
   mondayOf,
+  nextOpenDay,
   noteFor,
   parseAbsences,
   parseExams,
@@ -18,6 +20,30 @@ test("monday of a Thursday in November 2026", () => {
   assert.equal(mondayOf("2026-11-12"), "2026-11-09");
   assert.equal(weekdayShort("2026-11-12"), "Do");
   assert.equal(mondayOf("2026-11-15"), "2026-11-09");
+  assert.equal(daysBetween("2026-11-12", "2026-11-23"), 11);
+});
+
+test("next open day finds the first real school day", () => {
+  const lesson = {
+    id: "1",
+    startMin: 8 * 60,
+    endMin: 8 * 60 + 45,
+    subject: "Deutsch",
+    teacher: "Keller",
+    originalTeacher: "",
+    room: "112",
+    info: "",
+    status: "regular" as const,
+  };
+  const found = nextOpenDay(
+    [
+      { iso: "2026-11-12", lessons: [] },
+      { iso: "2026-11-22", lessons: [{ ...lesson, status: "cancelled" }] },
+      { iso: "2026-11-23", lessons: [lesson] },
+    ],
+    "2026-11-14",
+  );
+  assert.equal(found?.iso, "2026-11-23");
 });
 
 test("parsers read Untis payloads", () => {

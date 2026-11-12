@@ -17,6 +17,14 @@ const schoolQuerySchema = z.object({
   query: z.string().trim().min(2).max(80),
 });
 
+const loginCheckSchema = z.object({
+  baseUrl: z.string().trim().min(1).max(200),
+  school: z.string().trim().min(1).max(120),
+  user: z.string().trim().min(1).max(120),
+  password: z.string().min(1).max(500),
+  login: z.enum(["password", "secret"]).optional().default("password"),
+});
+
 const directorySchema = z.object({
   baseUrl: z.string().trim().min(1).max(200),
   school: z.string().trim().min(1).max(120),
@@ -68,6 +76,13 @@ export const searchSchools = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { searchUntisSchools } = await import("@/lib/flur/untis.server");
     return searchUntisSchools(data.query);
+  });
+
+export const checkLogin = createServerFn({ method: "POST" })
+  .validator((input: unknown) => loginCheckSchema.parse(input))
+  .handler(async ({ data }) => {
+    const { checkUntisLogin } = await import("@/lib/flur/untis.server");
+    return checkUntisLogin(data);
   });
 
 export const listDirectory = createServerFn({ method: "POST" })

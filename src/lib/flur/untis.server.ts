@@ -338,6 +338,13 @@ async function loginWithSecret(creds: UntisCreds, base: string): Promise<Session
   return { id, personType, personId, at: Date.now() };
 }
 
+function rejectedMessage(login: LoginKind, message: string): string | null {
+  if (!/auth|password|benutzer|login|user|otp|secret|zugang|anmeld|credential|falsch/i.test(message)) return null;
+  return login === "secret"
+    ? "Schul-Login abgelehnt. Benutzer und der Code aus Freigaben stimmen nicht."
+    : "Das Passwort ist falsch, oder der Benutzer stimmt nicht.";
+}
+
 function personTypeOf(value: unknown): number {
   if (typeof value === "number" && Number.isFinite(value) && value > 0) return value;
   const text = String(value ?? "").toUpperCase();
@@ -603,16 +610,7 @@ export async function loadUntisBoard(input: UntisCreds): Promise<BoardResult> {
   } catch (error) {
     sessions.delete(sessionKey({ ...creds, baseUrl: base, school }));
     const message = error instanceof Error ? error.message : "WebUntis ist nicht erreichbar.";
-    if (/auth|password|benutzer|login|user|otp|secret|zugang/i.test(message)) {
-      return {
-        ok: false,
-        error:
-          creds.login === "secret"
-            ? "Schul-Login abgelehnt. Benutzer und den Code aus Freigaben prüfen."
-            : "Anmeldung abgelehnt. Benutzer und Passwort prüfen.",
-      };
-    }
-    return { ok: false, error: message };
+    return { ok: false, error: rejectedMessage(creds.login, message) ?? message };
   }
 }
 
@@ -671,13 +669,12 @@ export async function loadUntisDesk(input: UntisCreds): Promise<DeskResult> {
     const element = await resolveElement({ ...creds, school }, base, session);
     const today = berlinParts();
     const startIso = mondayOf(today.iso);
-    const endIso = addDaysIso(startIso, 13);
-    const startDate = Number(startIso.replace(/-/g, ""));
-    const endDate = Number(endIso.replace(/-/g, ""));
-    const [subjects, teachers, rooms, rawLessons] = await Promise.all([
-      catalog(base, school, session.id, "getSubjects"),
-      catalog(base, school, session.id, "getTeachers"),
-      catalog(base, school, session.id, "getRooms"),
+    const span = 42;
+    const endIso = addDaysIso(startIso, span - 1);
+    const ymd = (iso: string) => Number(iso.replace(/-/g, ""));
+    const startDate = ymd(startIso);
+    const endDate = ymd(endIso);
+    const timetable = (from: string, to: string) =>
       rpc(
         base,
         school,
@@ -685,8 +682,8 @@ export async function loadUntisDesk(input: UntisCreds): Promise<DeskResult> {
         {
           options: {
             element,
-            startDate,
-            endDate,
+            startDate: ymd(from),
+            endDate: ymd(to),
             showInfo: true,
             showSubstText: true,
             showLsText: true,
@@ -698,10 +695,18 @@ export async function loadUntisDesk(input: UntisCreds): Promise<DeskResult> {
           },
         },
         session.id,
-      ) as Promise<RawLesson[]>,
+      ) as Promise<RawLesson[]>;
+    const [subjects, teachers, rooms, firstChunk, secondChunk, thirdChunk] = await Promise.all([
+      catalog(base, school, session.id, "getSubjects"),
+      catalog(base, school, session.id, "getTeachers"),
+      catalog(base, school, session.id, "getRooms"),
+      timetable(startIso, addDaysIso(startIso, 13)),
+      timetable(addDaysIso(startIso, 14), addDaysIso(startIso, 27)).catch(() => [] as RawLesson[]),
+      timetable(addDaysIso(startIso, 28), endIso).catch(() => [] as RawLesson[]),
     ]);
-    const grouped = lessonsOn(Array.isArray(rawLessons) ? rawLessons : [], subjects, teachers, rooms);
-    const days = Array.from({ length: 14 }, (_, index) => {
+    const rawLessons = [firstChunk, secondChunk, thirdChunk].flatMap((rows) => (Array.isArray(rows) ? rows : []));
+    const grouped = lessonsOn(rawLessons, subjects, teachers, rooms);
+    const days = Array.from({ length: span }, (_, index) => {
       const iso = addDaysIso(startIso, index);
       return { iso, lessons: grouped.get(iso) ?? [] };
     });
@@ -756,16 +761,38 @@ export async function loadUntisDesk(input: UntisCreds): Promise<DeskResult> {
   } catch (error) {
     sessions.delete(sessionKey({ ...creds, baseUrl: base, school }));
     const message = error instanceof Error ? error.message : "WebUntis ist nicht erreichbar.";
-    if (/auth|password|benutzer|login|user|otp|secret|zugang/i.test(message)) {
+    return { ok: false, error: rejectedMessage(creds.login, message) ?? message };
+  }
+}
+
+export async function checkUntisLogin(input: {
+  baseUrl: string;
+  school: string;
+  user: string;
+  password: string;
+  login: LoginKind;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  const creds = applyPastedAccess({ ...input, who: "student", whoName: "" });
+  let base = "";
+  let school = creds.school.trim();
+  try {
+    base = normalizeUntisBase(creds.baseUrl);
+    if (!school || !creds.user.trim() || !creds.password) {
       return {
         ok: false,
         error:
           creds.login === "secret"
-            ? "Schul-Login abgelehnt. Benutzer und den Code aus Freigaben prüfen."
-            : "Anmeldung abgelehnt. Benutzer und Passwort prüfen.",
+            ? "Benutzer und Zugangscode werden gebraucht."
+            : "Benutzer und Passwort werden gebraucht.",
       };
     }
-    return { ok: false, error: message };
+    school = await resolveSchoolName(base, school);
+    await login({ ...creds, school, baseUrl: base }, base);
+    return { ok: true };
+  } catch (error) {
+    if (base) sessions.delete(sessionKey({ ...creds, baseUrl: base, school }));
+    const message = error instanceof Error ? error.message : "WebUntis ist nicht erreichbar.";
+    return { ok: false, error: rejectedMessage(creds.login, message) ?? message };
   }
 }
 

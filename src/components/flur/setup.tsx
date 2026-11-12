@@ -2,7 +2,7 @@ import { Bike, Bus, Car, ChevronLeft, Footprints, QrCode, Search } from "lucide-
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { parseUntisAccess } from "@/lib/flur/access";
 import { filterDirectory, type DirectoryItem } from "@/lib/flur/directory";
-import { listDirectory, searchSchools } from "@/lib/flur/fns";
+import { checkLogin, listDirectory, searchSchools } from "@/lib/flur/fns";
 import { hasRoute, hasUntis } from "@/lib/flur/settings";
 import { MODE_LABEL, type LoginKind, type Mode, type SchoolMatch, type ServerProfile, type Settings, type Who } from "@/lib/flur/types";
 
@@ -263,6 +263,7 @@ export function Setup({
   const [searching, setSearching] = useState(false);
   const [searchHint, setSearchHint] = useState("");
   const [hint, setHint] = useState("");
+  const [checking, setChecking] = useState(false);
   const [place, setPlace] = useState("");
   const [qrBusy, setQrBusy] = useState(false);
   const trail = useRef<SetupStep[]>([]);
@@ -408,7 +409,7 @@ export function Setup({
     go("route");
   }
 
-  function continueLogin() {
+  async function continueLogin() {
     const user = draft.user.trim();
     const secret = draft.password.trim();
     if (!user && !secret) {
@@ -431,7 +432,28 @@ export function Setup({
       setHint("Das ist kein Code aus Freigaben.");
       return;
     }
-    go("who");
+    setChecking(true);
+    setHint("");
+    try {
+      const result = await checkLogin({
+        data: {
+          baseUrl: draft.baseUrl,
+          school: draft.school,
+          user,
+          password: secret,
+          login: draft.login,
+        },
+      });
+      if (!result.ok) {
+        setHint(result.error);
+        return;
+      }
+      go("who");
+    } catch (error) {
+      setHint(error instanceof Error ? error.message : "WebUntis ist gerade nicht erreichbar.");
+    } finally {
+      setChecking(false);
+    }
   }
 
   return (
@@ -702,10 +724,10 @@ export function Setup({
                 </Field>
               </div>
             )}
-            {hint ? <p className="mt-3 text-sm text-chalk">{hint}</p> : null}
+            {hint ? <p className="mt-3 text-sm text-pretty text-rust">{hint}</p> : null}
             <div className="mt-auto flex flex-col gap-3 pt-8">
-              <button type="button" className="apple-btn w-full" onClick={continueLogin}>
-                Weiter
+              <button type="button" className="apple-btn w-full disabled:opacity-60" onClick={() => void continueLogin()} disabled={checking}>
+                {checking ? "Wird geprüft …" : "Weiter"}
               </button>
               <button type="button" className="h-11 text-sm font-medium text-mist" onClick={() => go("who")}>
                 Ohne Konto weiter

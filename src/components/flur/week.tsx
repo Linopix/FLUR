@@ -65,6 +65,7 @@ export function WeekView({
   const monday = addDaysIso(anchor, offset * 7);
   const isos = [0, 1, 2, 3, 4, 5, 6].map((index) => addDaysIso(monday, index));
   const byIso = new Map((desk?.days ?? []).map((day) => [day.iso, day.lessons]));
+  const weeks = Math.max(1, Math.ceil((desk?.days.length || 14) / 7));
   const schoolDays = isos.slice(0, 5);
   const visible = isos.filter((iso, index) => index < 5 || (byIso.get(iso)?.length ?? 0) > 0);
   const active = visible.includes(picked) ? picked : visible.includes(todayIso) ? todayIso : visible[0];
@@ -104,8 +105,8 @@ export function WeekView({
               type="button"
               className="flex size-12 items-center justify-center rounded-xl border border-line text-paper disabled:opacity-40"
               aria-label="Nächste Woche"
-              disabled={offset >= 1}
-              onClick={() => setOffset((value) => Math.min(1, value + 1))}
+              disabled={offset >= weeks - 1}
+              onClick={() => setOffset((value) => Math.min(weeks - 1, value + 1))}
             >
               <ChevronRight className="size-5" aria-hidden="true" />
             </button>

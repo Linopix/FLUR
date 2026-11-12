@@ -104,6 +104,23 @@ export function weekdayShort(iso: string): string {
   return WEEKDAYS[weekdayIndex(iso)] ?? "";
 }
 
+export function daysBetween(fromIso: string, toIso: string): number {
+  const [fromYear, fromMonth, fromDay] = fromIso.split("-").map(Number);
+  const [toYear, toMonth, toDay] = toIso.split("-").map(Number);
+  const from = Date.UTC(fromYear || 1970, (fromMonth || 1) - 1, fromDay || 1);
+  const to = Date.UTC(toYear || 1970, (toMonth || 1) - 1, toDay || 1);
+  return Math.round((to - from) / 86_400_000);
+}
+
+/** First day on or after `fromIso` that still has a lesson. */
+export function nextOpenDay(days: DeskDay[], fromIso: string): DeskDay | null {
+  for (const day of days) {
+    if (fromIso && day.iso < fromIso) continue;
+    if (day.lessons.some((lesson) => lesson.status !== "cancelled")) return day;
+  }
+  return null;
+}
+
 export function mondayOf(iso: string): string {
   const index = weekdayIndex(iso);
   const delta = index === 0 ? -6 : 1 - index;

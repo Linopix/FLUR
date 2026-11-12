@@ -10,7 +10,7 @@ Eine offizielle Untis-App für den Mac gibt es nicht. FLUR ist der Ersatz: diese
 | --- | --- |
 | Heute, mit laufender Stunde | Heute, Uhr und nächste Stunde. Pfeile blättern durch die Tage. |
 | Woche | Woche, diese und die nächste. Am Mac und am breiten Bildschirm als Spalten. |
-| Vertretungen und Entfall | Änderungen aus dem eigenen Plan, zwei Wochen voraus. Fremde Klassen bleiben draußen. |
+| Vertretungen und Entfall | Änderungen aus dem eigenen Plan, sechs Wochen voraus. Fremde Klassen bleiben draußen. |
 | Prüfungen | Prüfungen, wenn die Schule sie über die Schnittstelle freigibt. |
 | Hausaufgaben | Hausaufgaben. Abhaken gilt nur auf diesem Gerät. |
 | Fehlzeiten | Fehlzeiten, entschuldigt oder nicht, wenn die Schule das erlaubt. |

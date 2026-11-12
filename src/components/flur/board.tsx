@@ -22,7 +22,7 @@ import { Setup, type SetupStep } from "@/components/flur/setup";
 import { useFlur } from "@/components/flur/use-flur";
 import { WeekView } from "@/components/flur/week";
 import { DEMO_LESSONS, lessonSpan } from "@/lib/flur/demo";
-import { downloadIcs, toIcs } from "@/lib/flur/desk";
+import { daysBetween, downloadIcs, nextOpenDay, toIcs } from "@/lib/flur/desk";
 import { forgetProfile, loadProfiles, rememberProfile, type LocalProfile } from "@/lib/flur/profiles";
 import { hasRoute, hasUntis } from "@/lib/flur/settings";
 import { MODE_LABEL, type Lesson, type Mode, type TripLeg, type TripPlan } from "@/lib/flur/types";
@@ -337,7 +337,8 @@ export function Board() {
   const [dayShift, setDayShift] = useState(0);
   const [profiles, setProfiles] = useState<LocalProfile[]>([]);
   const minutes = flur.now ? berlinParts(flur.now).minutes : null;
-  const usingDemo = !flur.boardLive && !flur.today.lessons.length;
+  const signedIn = flur.deviceUntis || flur.serverUntis;
+  const usingDemo = !signedIn && !flur.boardLive;
   const lessons = usingDemo ? DEMO_LESSONS : flur.today.lessons;
   const dateLabel = flur.now ? formatDay(berlinParts(flur.now).iso) : "Heute";
   const { weekday, rest } = splitDay(dateLabel);
@@ -355,6 +356,9 @@ export function Board() {
     ? lessons
     : (flur.desk?.days.find((day) => day.iso === selectedIso)?.lessons ?? []);
   const listMinutes = !shifted && lookingAtToday ? minutes : null;
+  const later = !focus && todayIso && flur.desk ? nextOpenDay(flur.desk.days, addDaysIso(todayIso, 2)) : null;
+  const lastIso = flur.desk?.days.at(-1)?.iso ?? "";
+  const maxShift = todayIso && lastIso ? Math.max(0, daysBetween(todayIso, lastIso)) : 41;
 
   useEffect(() => {
     if (view === "setup") setProfiles(loadProfiles());
@@ -415,18 +419,31 @@ export function Board() {
   }
 
   const sourceLabel = flur.boardError
-    ? "WebUntis nicht erreichbar"
+    ? /abgelehnt|passwort|falsch/i.test(flur.boardError)
+      ? "Anmeldung abgelehnt"
+      : "WebUntis nicht erreichbar"
     : flur.boardLive
       ? "Live aus WebUntis"
       : flur.boardLoading
         ? "Wird geladen"
         : "Beispieltag";
 
-  const kicker =
-    focus?.kind === "now" ? "Jetzt" : focus?.kind === "tomorrow" ? "Morgen früh" : focus ? "Als Nächstes" : "Heute";
+  const kicker = flur.boardError
+    ? "Zugang"
+    : focus?.kind === "now"
+      ? "Jetzt"
+      : focus?.kind === "tomorrow"
+        ? "Morgen früh"
+        : focus
+          ? "Als Nächstes"
+          : later
+            ? "Demnächst"
+            : "Heute";
 
   const planStatus = flur.boardError
-    ? "Nicht erreichbar"
+    ? /abgelehnt|passwort|falsch/i.test(flur.boardError)
+      ? "Anmeldung abgelehnt"
+      : "Nicht erreichbar"
     : hasUntis(flur.settings)
       ? flur.settings.schoolLabel.trim() || flur.settings.school.trim() || "WebUntis"
       : flur.serverUntis
@@ -533,7 +550,9 @@ export function Board() {
                     </p>
                   ) : null}
                 </div>
-                {focus ? (
+                {flur.boardError ? (
+                  <h2 className="mt-2 font-display text-4xl text-balance">Anmeldung</h2>
+                ) : focus ? (
                   <>
                     <h2 className="mt-2 font-display text-4xl text-balance md:text-5xl">{focus.lesson.subject}</h2>
                     <p className="mt-3 text-base text-mist">
@@ -543,10 +562,27 @@ export function Board() {
                       {focus.lesson.teacher ? ` · ${focus.lesson.teacher}` : ""}
                     </p>
                   </>
+                ) : later ? (
+                  <>
+                    <h2 className="mt-2 font-display text-4xl text-balance">Noch frei</h2>
+                    <p className="mt-3 text-pretty text-base text-mist">Unterricht ab {formatDay(later.iso)}.</p>
+                    <button
+                      type="button"
+                      className="mt-4 h-11 text-sm font-semibold text-chalk"
+                      onClick={() => setDayShift(daysBetween(todayIso, later.iso))}
+                    >
+                      Ersten Schultag zeigen
+                    </button>
+                  </>
                 ) : (
                   <h2 className="mt-2 font-display text-4xl">Frei</h2>
                 )}
                 {flur.boardError ? <p className="mt-4 text-sm text-pretty text-rust">{flur.boardError}</p> : null}
+                {flur.boardError ? (
+                  <button type="button" className="mt-3 h-11 text-sm font-semibold text-chalk" onClick={() => setSetupStep("login")}>
+                    Zugang prüfen
+                  </button>
+                ) : null}
               </section>
 
               <div className="order-2 grid gap-4">
@@ -602,7 +638,7 @@ export function Board() {
                     type="button"
                     aria-label="Nächster Tag"
                     className="flex size-11 items-center justify-center rounded-xl text-paper disabled:opacity-40"
-                    disabled={dayShift >= 13}
+                    disabled={dayShift >= maxShift}
                     onClick={() => setDayShift((value) => value + 1)}
                   >
                     <ChevronRight className="size-5" aria-hidden="true" />
@@ -610,11 +646,24 @@ export function Board() {
                 </div>
               </div>
               {listLessons.length === 0 ? (
-                <p className="px-2 py-6 text-pretty text-mist">
-                  {shifted && flur.deskLoading
-                    ? "Wird geladen …"
-                    : "Keine Stunden. Frei, Ferien oder noch nichts eingetragen."}
-                </p>
+                <div className="px-2 py-6">
+                  <p className="text-pretty text-mist">
+                    {shifted && flur.deskLoading
+                      ? "Wird geladen …"
+                      : !shifted && later
+                        ? `Keine Stunden heute. Unterricht ab ${formatDay(later.iso)}.`
+                        : "Keine Stunden. Frei, Ferien oder noch nichts eingetragen."}
+                  </p>
+                  {!shifted && later ? (
+                    <button
+                      type="button"
+                      className="mt-3 h-11 text-sm font-semibold text-chalk"
+                      onClick={() => setDayShift(daysBetween(todayIso, later.iso))}
+                    >
+                      Diesen Tag zeigen
+                    </button>
+                  ) : null}
+                </div>
               ) : (
                 <ol className="mt-1">
                   {breaks.map((row) =>
