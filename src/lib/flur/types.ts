@@ -116,6 +116,7 @@ export type Settings = {
   burnGuard: boolean;
   infoScreen: boolean;
   dense: boolean;
+  deutschlandticket: boolean;
   theme: ThemeId;
   onboarded: boolean;
 };

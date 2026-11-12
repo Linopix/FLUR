@@ -46,6 +46,7 @@ const tripSchema = z.object({
   arriveBy: z.string().max(40).optional().default(""),
   classEnd: z.string().max(40).optional().default(""),
   focus: z.string().max(80).optional().default(""),
+  deutschlandticket: z.boolean().optional().default(false),
 });
 
 export const fetchServerProfile = createServerFn({ method: "GET" }).handler(async () => {

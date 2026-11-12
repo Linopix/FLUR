@@ -1,4 +1,4 @@
-import { Bike, Bus, Car, ChevronLeft, Footprints, Monitor, QrCode, Route, Search, Smartphone } from "lucide-react";
+import { Bike, Bus, Car, ChevronLeft, Footprints, Monitor, QrCode, Route, Search, Smartphone, Ticket } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ThemePicker } from "@/components/flur/display-settings";
 import { parseUntisAccess } from "@/lib/flur/access";
@@ -7,9 +7,9 @@ import { checkLogin, listDirectory, searchSchools } from "@/lib/flur/fns";
 import { applyTheme, hasRoute, hasUntis, loadSettings } from "@/lib/flur/settings";
 import { MODE_HINT, MODE_LABEL, type LoginKind, type Mode, type SchoolMatch, type ServerProfile, type Settings, type Who } from "@/lib/flur/types";
 
-export type SetupStep = "welcome" | "school" | "who" | "login" | "route" | "screen" | "done";
+export type SetupStep = "welcome" | "school" | "who" | "login" | "route" | "ticket" | "screen" | "done";
 
-const STEPS: SetupStep[] = ["school", "login", "who", "route", "screen", "done"];
+const STEPS: SetupStep[] = ["school", "login", "who", "route", "ticket", "screen", "done"];
 
 const SSO_STEPS = [
   "In WebUntis im Browser wie gewohnt über die Schule anmelden.",
@@ -299,6 +299,11 @@ export function Setup({
   function chooseScreen(info: boolean) {
     setDraft({ ...draft, infoScreen: info, kioskRotate: info, burnGuard: info });
     go("done");
+  }
+
+  function chooseTicket(hasTicket: boolean) {
+    setDraft({ ...draft, deutschlandticket: hasTicket });
+    go("screen");
   }
 
   function go(next: SetupStep) {
@@ -812,11 +817,34 @@ export function Setup({
               ) : null}
             </div>
             <div className="mt-auto flex flex-col gap-3 pt-8">
-              <button type="button" className="apple-btn w-full" onClick={() => go("screen")}>
+              <button type="button" className="apple-btn w-full" onClick={() => go("ticket")}>
                 Weiter
               </button>
-              <button type="button" className="h-11 text-sm font-medium text-mist" onClick={() => go("screen")}>
+              <button type="button" className="h-11 text-sm font-medium text-mist" onClick={() => go("ticket")}>
                 Ohne Weg weiter
+              </button>
+            </div>
+          </>
+        ) : null}
+
+        {step === "ticket" ? (
+          <>
+            <h1 className="font-display text-4xl text-balance">Deutschlandticket?</h1>
+            <p className="mt-3 text-pretty text-mist">
+              Wenn ja, sucht FLUR nur Verbindungen, die das Ticket trägt. ICE, IC, EC, Nachtzug und Fernbus fallen weg.
+            </p>
+            <div className="mt-6 grid gap-3">
+              <button type="button" className="screen-choice" onClick={() => chooseTicket(true)}>
+                <Ticket className="size-5 text-chalk" aria-hidden="true" />
+                <span className="mt-3 block font-medium">Ja, ich habe eins</span>
+                <span className="mt-1 block text-sm text-pretty text-mist">
+                  Regionalzug, S-Bahn, U-Bahn, Tram und Bus. Der Fernverkehr bleibt draußen.
+                </span>
+              </button>
+              <button type="button" className="screen-choice" onClick={() => chooseTicket(false)}>
+                <Route className="size-5 text-chalk" aria-hidden="true" />
+                <span className="mt-3 block font-medium">Nein</span>
+                <span className="mt-1 block text-sm text-pretty text-mist">Alle Verbindungen, auch ICE und IC.</span>
               </button>
             </div>
           </>
@@ -860,9 +888,13 @@ export function Setup({
                 <dt className="text-mist">Stundenplan</dt>
                 <dd className="truncate font-medium">{planLabel}</dd>
               </div>
-              <div className="flex items-center justify-between gap-4 px-4 py-4">
+              <div className="flex items-center justify-between gap-4 border-b border-line px-4 py-4">
                 <dt className="text-mist">Weg</dt>
                 <dd className="truncate font-medium">{routeLabel}</dd>
+              </div>
+              <div className="flex items-center justify-between gap-4 px-4 py-4">
+                <dt className="text-mist">Deutschlandticket</dt>
+                <dd className="truncate font-medium">{draft.deutschlandticket ? "Ja, nur Nahverkehr" : "Nein"}</dd>
               </div>
             </dl>
             <label className="mt-4 flex items-center gap-4 rounded-board border border-line bg-panel px-4 py-4">

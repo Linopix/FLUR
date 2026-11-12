@@ -19,12 +19,12 @@ Eine offizielle Untis-App für den Mac gibt es nicht. FLUR ist der Ersatz: diese
 | Mehrere Kinder | Bis zu sechs Konten, nur auf diesem Gerät. |
 | Kalender | Stunden und Prüfungen als Kalenderdatei. |
 | Offline | Der letzte Stundenplan und die Schuldaten liegen auf dem Gerät und sind sofort wieder da, noch während FLUR neu lädt. „Offline“ steht erst dabei, wenn der nächste Abruf am Netz scheitert. Eine abgelehnte Anmeldung ist kein Offline: dann heißt es „Anmeldung abgelehnt“, und der alte Plan wird nicht als aktueller Stand gezeigt. |
-| Schulweg | Hinweg und Heimweg. Anschluss vergleicht Bus, Rad und Fuß an beiden Enden. Bahn+Auto fährt nur zum Bahnhof. Nur Auto fährt den ganzen Weg. |
+| Schulweg | Hinweg und Heimweg. Anschluss vergleicht Bus, Rad und Fuß an beiden Enden. Bahn+Auto fährt nur zum Bahnhof. Nur Auto fährt den ganzen Weg. Mit Deutschlandticket bleiben ICE, IC, EC, Nachtzug und Fernbus draußen. Zug und Bus lassen sich antippen und öffnen DB Navigator oder die MVG-App. |
 | Flur-Bildschirm | Automatischer Wechsel zwischen Heute, Hinweg und Heimweg. Gegen Einbrennen rückt die Tafel langsam ein paar Pixel. In der Einrichtung lässt sich das Gerät als Infobildschirm markieren: dann sind Wechsel und Einbrennschutz an, und die Menüpunkte werden etwas größer. |
 
 Die Morgenpost bleibt unter Mehr: ein Text zum Kopieren. Automatischer Versand braucht ein Postfach und ist nicht angeschlossen.
 
-Fächer und Lehrkräfte stehen unter Mehr auf Auto, Kürzel, Ganz oder Laufen. Auto kürzt auf dem schmalen Bildschirm und schreibt auf dem breiten aus. Laufen schiebt einen zu langen Namen hin und her. Größe und kleinste Einheit der Uhr haben ebenfalls Auto. Der Countdown kann unter Mehr eine eigene Darstellung bekommen. Erscheinung ist Kreide oder Glas. Glas lässt den Goldton durchscheinend durch. Gegen Einbrennen steht unter Mehr und auf der letzten Seite der Einrichtung. Platzoptimierung rückt Heute enger zusammen, damit mehr Stunden auf die Tafel passen. Erscheinung, Namen und Uhr sind in Mehr zugeklappt, die Schalter darunter stehen in einer Liste.
+Fächer und Lehrkräfte stehen unter Mehr auf Auto, Kürzel, Ganz oder Laufen. Auto kürzt auf dem schmalen Bildschirm und schreibt auf dem breiten aus. Laufen schiebt einen zu langen Namen hin und her. Größe und kleinste Einheit der Uhr haben ebenfalls Auto. Der Countdown kann unter Mehr eine eigene Darstellung bekommen. Erscheinung ist Kreide oder Glas. Glas lässt den Goldton durchscheinend durch. Gegen Einbrennen steht unter Mehr und auf der letzten Seite der Einrichtung. Platzoptimierung rückt Heute enger zusammen, damit mehr Stunden auf die Tafel passen. Das Deutschlandticket steht in der Einrichtung und unter Mehr. Erscheinung, Namen und Uhr sind in Mehr zugeklappt, die Schalter darunter stehen in einer Liste.
 
 ## Was nicht geht
 
@@ -50,6 +50,8 @@ Beim ersten Öffnen fragt FLUR der Reihe nach:
 2. **Anmeldung.** Entweder das WebUntis-Passwort oder Schul-Login.
 3. **Für wen.** Ich, eine Klasse oder eine Lehrkraft. Klasse und Kürzel lassen sich suchen.
 4. **Weg.** Verkehrsmittel, Zuhause, Bahnhof, Halt an der Schule. Anschluss und Nur Auto fragen zusätzlich nach der Adresse der Schule, wenn der Halt nicht direkt davor liegt. Wer will, überspringt das und behält den Beispielweg.
+5. **Deutschlandticket.** Ja oder nein. Bei Ja sucht FLUR nur Regionalzug, S-Bahn, U-Bahn, Tram und Bus. ICE, IC, EC, Nachtzug und Fernbus fallen weg. Das ist die Produktklasse, keine vollständige Tarifauskunft: einzelne örtliche Ausnahmen kennt FLUR nicht.
+6. **Gerät.** Infobildschirm oder Handy und Rechner. Beim Infobildschirm gehen Wechsel und Einbrennschutz an, die Menüpunkte werden etwas größer.
 
 **Beispiel ansehen** zeigt einen fertigen Tag, ohne etwas zu speichern, was schon da war.
 
@@ -79,7 +81,7 @@ Es gibt keine signierte App-Store-Version. Die Ausgabe auf GitHub ist eine App f
 4. Beim ersten Start blockt macOS die App. Im Finder rechtsklicken, **Öffnen**, dann noch einmal **Öffnen**.
 5. Wer die Meldung schon weggeklickt hat: Systemeinstellungen, Datenschutz & Sicherheit, **Dennoch öffnen**.
 
-Die App spricht nur mit der Schule und mit dem Fahrplandienst. Sie enthält keinen eigenen Account. Die aktuelle Ausgabe ist **1.0.3**: Platzoptimierung, der gespeicherte Plan mit dem Unterschied zwischen Offline und abgelehnter Anmeldung, Glas, Infobildschirm, getrennte Uhren und die Menüleiste.
+Die App spricht nur mit der Schule und mit dem Fahrplandienst. Sie enthält keinen eigenen Account. Die aktuelle Ausgabe ist **1.0.4**: Deutschlandticket in der Einrichtung, nur noch passende Nahverkehrsverbindungen, und antippen öffnet DB Navigator oder die MVG-App. Dazu bleibt, was 1.0.3 schon konnte: Platzoptimierung, der gespeicherte Plan, Glas, Infobildschirm, getrennte Uhren und die Menüleiste.
 
 Oben in der Menüleiste bleibt ein FLUR-Symbol, auch wenn das Fenster zu ist. Daneben stehen die laufende oder nächste Stunde und der nächste Zug, zum Beispiel `Mathe 08:15–09:00 · RB 24 +6`. Ein Klick auf das Symbol zeigt Vertretung oder Entfall und öffnet die Tafel. Beenden geht über dasselbe Menü, nicht über das Schließen des Fensters.
 
@@ -118,6 +120,8 @@ Ohne `flur.env` läuft die Tafel mit einem Beispieltag und einer live gerechnete
 | `FLUR_MODE` | `link`, `bus`, `bike`, `walk`, `car` oder `drive` |
 
 Zugdaten kommen über [Transitous](https://transitous.org) (Fahrplandaten, unter anderem DB). Der Hinweg sucht die späteste Verbindung, die noch vor der ersten nicht ausgefallenen Stunde ankommt, mit acht Minuten für den Weg vom Halt ins Schulhaus. Der Heimweg rechnet dieselben acht Minuten vom Schulhaus zur Haltestelle und nimmt danach die früheste Zugverbindung. Wege zu Fuß, mit dem Rad und mit dem Auto über den öffentlichen OSRM-Dienst. „Pünktlich“ heißt: keine Ausfallmeldung und höchstens zwei Minuten Abweichung vom Fahrplan.
+
+Wer das Deutschlandticket ankreuzt, lässt FLUR ICE, IC, EC, Nachtzug und Fernbus weg. Gezeigt werden Regionalzug, S-Bahn, U-Bahn, Tram und Bus. Das folgt der Produktklasse, nicht einem Tarifrechner. Jede Zug- und Busfahrt lässt sich antippen. DB Navigator öffnet die Fahrplansuche der Bahn, die MVG-App die aktuelle MVGO-Suche. Beide Links stehen immer da, auch außerhalb von München. Dort ist DB Navigator der sinnvollere. Liegt die App nicht auf dem Gerät, öffnet sich die Webseite. Nur Auto bleibt ungefiltert, weil kein Ticket nötig ist.
 
 **Anschluss** rechnet an beiden Enden Bus, Rad und zu Fuß, nimmt bis zu zwei passende Züge und behält die kürzere Tür-zu-Tür-Zeit, sofern sie noch vor der Stunde ankommt. Liegt eine Schuladresse vor, vergleicht das letzte Stück Bus und Fußweg bis vor die Tür, sonst bleiben es acht Minuten ins Schulhaus. **Nur Auto** fährt von zu Hause direkt zur Schuladresse, ohne Zug. Die Minute ist die Straßenzeit, nicht der Live-Stau. **Bahn+Auto** bleibt der alte Weg: Auto nur bis zum Bahnhof, danach Zug.
 

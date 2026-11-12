@@ -34,6 +34,7 @@ export function emptySettings(): Settings {
     burnGuard: false,
     infoScreen: false,
     dense: false,
+    deutschlandticket: false,
     theme: "chalk",
     onboarded: false,
   };
@@ -152,6 +153,7 @@ export function loadSettings(): Settings {
       burnGuard: parsed.burnGuard === true,
       infoScreen: parsed.infoScreen === true,
       dense: parsed.dense === true,
+      deutschlandticket: parsed.deutschlandticket === true,
       theme: asTheme(parsed.theme),
       password: typeof parsed.password === "string" ? parsed.password : "",
       onboarded: parsed.onboarded === true,

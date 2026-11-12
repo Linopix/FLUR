@@ -325,6 +325,7 @@ export function useFlur() {
               classEnd: "",
               focus: out?.focus ?? "",
               example: exampleRoute,
+              deutschlandticket: settings.deutschlandticket,
             },
           }),
           fetchTrip({
@@ -340,6 +341,7 @@ export function useFlur() {
               classEnd: back.classEnd,
               focus: back.focus,
               example: exampleRoute,
+              deutschlandticket: settings.deutschlandticket,
             },
           }),
         ]);
@@ -366,7 +368,7 @@ export function useFlur() {
       cancelled = true;
       window.clearInterval(id);
     };
-  }, [clockReady, exampleRoute, hydrated, route.homeAddress, route.mode, route.schoolAddress, route.schoolStop, route.station, today, tomorrow]);
+  }, [clockReady, exampleRoute, hydrated, route.homeAddress, route.mode, route.schoolAddress, route.schoolStop, route.station, settings.deutschlandticket, today, tomorrow]);
 
   const setSettings = useCallback((next: Settings) => {
     setSettingsState(next);

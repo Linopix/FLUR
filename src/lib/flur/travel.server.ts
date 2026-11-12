@@ -8,6 +8,7 @@ import {
   type TimedItinerary,
 } from "@/lib/flur/plan";
 import { delayMinutes } from "@/lib/flur/time";
+import { busModes, itineraryOnTicket, railModes, TICKET_NOTE } from "@/lib/flur/ticket";
 import {
   EXAMPLE_PLACES,
   MODE_LABEL,
@@ -47,8 +48,6 @@ type RawItinerary = TimedItinerary & {
   legs?: RawLeg[];
 };
 
-const RAIL = "HIGHSPEED_RAIL,NIGHT_RAIL,LONG_DISTANCE,REGIONAL_FAST_RAIL,REGIONAL_RAIL,SUBURBAN";
-const BUS = "BUS,TRAM,SUBWAY,COACH";
 const PUNCTUAL_MAX = 2;
 
 const geoCache = new Map<string, { at: number; point: Point }>();
@@ -114,6 +113,7 @@ async function transitPlan(
   when: Date,
   modes: string,
   options: { arriveBy: boolean; searchWindow: number },
+  ticket: boolean,
 ): Promise<RawItinerary[]> {
   const url = new URL("https://api.transitous.org/api/v1/plan");
   url.searchParams.set("fromPlace", `${from.lat},${from.lon}`);
@@ -126,7 +126,8 @@ async function transitPlan(
   url.searchParams.set("timetableView", "false");
   url.searchParams.set("searchWindow", String(options.searchWindow));
   const json = await getJson<{ itineraries?: RawItinerary[] }>(url.toString());
-  return json.itineraries ?? [];
+  const rows = json.itineraries ?? [];
+  return ticket ? rows.filter(itineraryOnTicket) : rows;
 }
 
 function legDelay(leg: RawLeg): number {
@@ -261,9 +262,10 @@ async function approachLegs(
   station: Point,
   beAtStation: Date,
   now: number,
+  ticket: boolean,
 ): Promise<TripLeg[]> {
   if (mode === "bus") {
-    const rows = await transitPlan(home, station, beAtStation, BUS, { arriveBy: true, searchWindow: 90 * 60 });
+    const rows = await transitPlan(home, station, beAtStation, busModes(ticket), { arriveBy: true, searchWindow: 90 * 60 }, ticket);
     const chosen = pickTightest(rows, beAtStation.getTime(), now);
     if (!chosen?.startTime || !chosen.endTime) {
       throw new Error("Kein Bus, der rechtzeitig am Bahnhof ist. Fahrrad, Auto oder zu Fuß versuchen.");
@@ -276,9 +278,9 @@ async function approachLegs(
   return [accessLeg(mode, home.name, station.name, leave.toISOString(), street.minutes + street.pad, street.title)];
 }
 
-async function leaveStationLegs(mode: Mode, station: Point, home: Point, atStation: Date): Promise<TripLeg[]> {
+async function leaveStationLegs(mode: Mode, station: Point, home: Point, atStation: Date, ticket: boolean): Promise<TripLeg[]> {
   if (mode === "bus") {
-    const rows = await transitPlan(station, home, atStation, BUS, { arriveBy: false, searchWindow: 60 * 60 });
+    const rows = await transitPlan(station, home, atStation, busModes(ticket), { arriveBy: false, searchWindow: 60 * 60 }, ticket);
     const chosen = pickEarliest(rows, atStation.getTime());
     if (!chosen?.startTime || !chosen.endTime) {
       throw new Error("Kein Bus vom Bahnhof nach Hause. Fahrrad, Auto oder zu Fuß versuchen.");
@@ -290,9 +292,9 @@ async function leaveStationLegs(mode: Mode, station: Point, home: Point, atStati
   return [accessLeg(mode, station.name, home.name, atStation.toISOString(), street.minutes, street.title)];
 }
 
-async function leadMinutes(mode: Mode, home: Point, station: Point, now: number): Promise<number> {
+async function leadMinutes(mode: Mode, home: Point, station: Point, now: number, ticket: boolean): Promise<number> {
   if (mode === "bus") {
-    const rows = await transitPlan(home, station, new Date(now), BUS, { arriveBy: false, searchWindow: 60 * 60 });
+    const rows = await transitPlan(home, station, new Date(now), busModes(ticket), { arriveBy: false, searchWindow: 60 * 60 }, ticket);
     const chosen = pickEarliest(rows, now);
     if (!chosen?.startTime || !chosen.endTime) return 20;
     return Math.max(8, Math.round((Date.parse(chosen.endTime) - Date.parse(chosen.startTime)) / 60_000) + transferPad(mode));
@@ -352,9 +354,10 @@ async function maybeApproach(
   station: Point,
   beAt: Date,
   now: number,
+  ticket: boolean,
 ): Promise<TripLeg[] | null> {
   try {
-    return await approachLegs(mode, home, station, beAt, now);
+    return await approachLegs(mode, home, station, beAt, now, ticket);
   } catch {
     return null;
   }
@@ -365,9 +368,10 @@ async function maybeFromStop(
   station: Point,
   home: Point,
   atStation: Date,
+  ticket: boolean,
 ): Promise<TripLeg[] | null> {
   try {
-    return await leaveStationLegs(mode, station, home, atStation);
+    return await leaveStationLegs(mode, station, home, atStation, ticket);
   } catch {
     return null;
   }
@@ -387,9 +391,9 @@ async function maybeStreet(
   }
 }
 
-async function maybeBus(from: Point, to: Point, at: Date): Promise<TripLeg[] | null> {
+async function maybeBus(from: Point, to: Point, at: Date, ticket: boolean): Promise<TripLeg[] | null> {
   try {
-    const rows = await transitPlan(from, to, at, BUS, { arriveBy: false, searchWindow: 50 * 60 });
+    const rows = await transitPlan(from, to, at, busModes(ticket), { arriveBy: false, searchWindow: 50 * 60 }, ticket);
     const chosen = pickEarliest(rows, at.getTime());
     if (!chosen?.startTime || !chosen.endTime) return null;
     const legs = pathLegs(chosen, from.name, to.name);
@@ -406,9 +410,17 @@ function finishLinked(
   places: TripPlan["places"],
   example: boolean,
   focus: string,
+  ticket: boolean,
 ): TripResult {
   const winner = pickJourney(built, deadlineMs);
-  if (!winner) return { ok: false, error: "Keine Kombination aus Bus, Rad, Fuß und Zug." };
+  if (!winner) {
+    return {
+      ok: false,
+      error: ticket
+        ? "Keine Kombination mit dem Deutschlandticket. ICE, IC und Fernbus sind nicht dabei."
+        : "Keine Kombination aus Bus, Rad, Fuß und Zug.",
+    };
+  }
   const other = built
     .filter((row) => row.label !== winner.label)
     .sort((a, b) => a.arriveMs - a.leaveMs - (b.arriveMs - b.leaveMs))[0];
@@ -431,7 +443,7 @@ function finishLinked(
     leaveAt: new Date(winner.leaveMs).toISOString(),
     arriveAt: new Date(winner.arriveMs).toISOString(),
     headline: `${winner.label}, ${rail?.title ?? "Zug"} ${state}.`,
-    note: `${example ? "Beispielstrecke, live gerechnet. " : ""}${base}${faster}`,
+    note: `${example ? "Beispielstrecke, live gerechnet. " : ""}${base}${faster}${ticket ? ` ${TICKET_NOTE}` : ""}`,
     places,
     legs: winner.legs,
   };
@@ -502,6 +514,7 @@ async function planLink(input: {
   classEnd: string;
   focus: string;
   example: boolean;
+  ticket: boolean;
 }): Promise<TripResult> {
   const now = Date.now();
   const places = { home: input.home.name, station: input.station.name, schoolStop: input.schoolStop.name };
@@ -515,12 +528,26 @@ async function planLink(input: {
     const minLead = Math.min(walk.minutes + walk.pad, bike.minutes + bike.pad);
     const deadlineMs = Date.parse(input.arriveBy);
     const tight = Number.isFinite(deadlineMs) && deadlineMs > now + 4 * 60_000;
-    const rows = await transitPlan(input.station, input.schoolStop, tight ? new Date(deadlineMs) : new Date(now + minLead * 60_000), RAIL, {
-      arriveBy: tight,
-      searchWindow: tight ? 4 * 60 * 60 : 2 * 60 * 60,
-    });
+    const rows = await transitPlan(
+      input.station,
+      input.schoolStop,
+      tight ? new Date(deadlineMs) : new Date(now + minLead * 60_000),
+      railModes(input.ticket),
+      {
+        arriveBy: tight,
+        searchWindow: tight ? 4 * 60 * 60 : 2 * 60 * 60,
+      },
+      input.ticket,
+    );
     const trains = usableTrains(rows, tight ? deadlineMs : null, now + minLead * 60_000);
-    if (trains.length === 0) return { ok: false, error: "Keine Zugverbindung in den nächsten Stunden." };
+    if (trains.length === 0) {
+      return {
+        ok: false,
+        error: input.ticket
+          ? "Keine Zugverbindung mit dem Deutschlandticket. ICE, IC und Fernbus sind nicht dabei."
+          : "Keine Zugverbindung in den nächsten Stunden.",
+      };
+    }
     const built: BuiltTrip[] = [];
     for (const train of trains) {
       const start = Date.parse(train.startTime ?? "");
@@ -528,12 +555,12 @@ async function planLink(input: {
       const ride = pathLegs(train, input.station.name, input.schoolStop.name);
       const punctual = itineraryPunctual(train);
       const approaches = await Promise.all(
-        modes.map(async (mode) => ({ mode, legs: await maybeApproach(mode, input.home, input.station, new Date(start), now) })),
+        modes.map(async (mode) => ({ mode, legs: await maybeApproach(mode, input.home, input.station, new Date(start), now, input.ticket) })),
       );
       const egresses: Array<{ mode: "walk" | "bike" | "bus"; legs: TripLeg[] | null }> = input.door
         ? [
             { mode: "walk", legs: await maybeStreet("walk", input.schoolStop, input.door, new Date(end)) },
-            { mode: "bus", legs: await maybeBus(input.schoolStop, input.door, new Date(end)) },
+            { mode: "bus", legs: await maybeBus(input.schoolStop, input.door, new Date(end), input.ticket) },
           ]
         : [
             {
@@ -562,7 +589,7 @@ async function planLink(input: {
         }
       }
     }
-    return finishLinked(built, tight ? deadlineMs : null, "hin", places, input.example, input.focus);
+    return finishLinked(built, tight ? deadlineMs : null, "hin", places, input.example, input.focus, input.ticket);
   }
 
   const classEndMs = Date.parse(input.classEnd);
@@ -574,7 +601,7 @@ async function planLink(input: {
     if (walk?.[0]) {
       stopOptions.push({ mode: "walk", atStop: Date.parse(walk[0].arrival), legs: walk });
     }
-    const bus = await maybeBus(input.door, input.schoolStop, new Date(atSchool));
+    const bus = await maybeBus(input.door, input.schoolStop, new Date(atSchool), input.ticket);
     if (bus?.[0]) stopOptions.push({ mode: "bus", atStop: Date.parse(bus.at(-1)?.arrival ?? ""), legs: bus });
   }
   if (stopOptions.length === 0) {
@@ -584,16 +611,16 @@ async function planLink(input: {
   const built: BuiltTrip[] = [];
   for (const toStop of stopOptions.slice(0, 2)) {
     if (!Number.isFinite(toStop.atStop)) continue;
-    const rows = await transitPlan(input.schoolStop, input.station, new Date(toStop.atStop), RAIL, {
+    const rows = await transitPlan(input.schoolStop, input.station, new Date(toStop.atStop), railModes(input.ticket), {
       arriveBy: false,
       searchWindow: 2 * 60 * 60,
-    });
+    }, input.ticket);
     const train = usableTrains(rows, null, toStop.atStop)[0];
     if (!train?.startTime || !train.endTime) continue;
     const ride = pathLegs(train, input.schoolStop.name, input.station.name);
     const punctual = itineraryPunctual(train);
     const homes = await Promise.all(
-      modes.map(async (mode) => ({ mode, legs: await maybeFromStop(mode, input.station, input.home, new Date(train.endTime ?? "")) })),
+      modes.map(async (mode) => ({ mode, legs: await maybeFromStop(mode, input.station, input.home, new Date(train.endTime ?? ""), input.ticket) })),
     );
     for (const home of homes) {
       if (!home.legs?.length) continue;
@@ -611,7 +638,7 @@ async function planLink(input: {
       });
     }
   }
-  return finishLinked(built, null, "heim", places, input.example, input.focus);
+  return finishLinked(built, null, "heim", places, input.example, input.focus, input.ticket);
 }
 
 export async function planTrip(input: {
@@ -626,10 +653,12 @@ export async function planTrip(input: {
   arriveBy?: string;
   classEnd?: string;
   focus?: string;
+  deutschlandticket?: boolean;
 }): Promise<TripResult> {
   const arriveBy = input.arriveBy?.trim() ?? "";
   const classEnd = input.classEnd?.trim() ?? "";
   const focus = input.focus?.trim() ?? "";
+  const ticket = input.deutschlandticket === true;
   const schoolAddress = input.schoolAddress?.trim() ?? "";
   const ownPlace = Boolean(input.homeAddress.trim() || input.station.trim() || input.schoolStop.trim() || schoolAddress);
   const homeAddress = input.homeAddress.trim() || (!ownPlace && input.example ? EXAMPLE_PLACES.homeAddress : "");
@@ -652,6 +681,7 @@ export async function planTrip(input: {
     input.departAt.slice(0, 16),
     arriveBy.slice(0, 16),
     classEnd.slice(0, 16),
+    ticket ? "d-ticket" : "",
   ].join("|");
   const cached = planCache.get(cacheKey);
   if (cached && Date.now() - cached.at < 45_000) return { ok: true, trip: cached.trip };
@@ -693,6 +723,7 @@ export async function planTrip(input: {
         classEnd,
         focus,
         example: !ownPlace,
+        ticket,
       });
       if (result.ok) planCache.set(cacheKey, { at: Date.now(), trip: result.trip });
       return result;
@@ -702,26 +733,31 @@ export async function planTrip(input: {
     if (input.direction === "hin") {
       const deadlineMs = Date.parse(arriveBy);
       const tight = Number.isFinite(deadlineMs) && deadlineMs > now + 4 * 60_000;
-      const lead = await leadMinutes(input.mode, home, station, now);
+      const lead = await leadMinutes(input.mode, home, station, now, ticket);
       let chosen: RawItinerary | null = null;
       let late = false;
       if (tight) {
-        const rows = await transitPlan(station, school, new Date(deadlineMs), RAIL, {
+        const rows = await transitPlan(station, school, new Date(deadlineMs), railModes(ticket), {
           arriveBy: true,
           searchWindow: 4 * 60 * 60,
-        });
+        }, ticket);
         chosen = pickTightest(rows, deadlineMs, now + lead * 60_000);
       }
       if (!chosen?.startTime || !chosen.endTime) {
         late = tight;
         const from = new Date(now + lead * 60_000);
-        const rows = await transitPlan(station, school, from, RAIL, { arriveBy: false, searchWindow: 2 * 60 * 60 });
+        const rows = await transitPlan(station, school, from, railModes(ticket), { arriveBy: false, searchWindow: 2 * 60 * 60 }, ticket);
         chosen = pickEarliest(rows, now + lead * 60_000);
       }
       if (!chosen?.startTime || !chosen.endTime) {
-        return { ok: false, error: "Keine Zugverbindung in den nächsten Stunden." };
+        return {
+          ok: false,
+          error: ticket
+            ? "Keine Zugverbindung mit dem Deutschlandticket. ICE, IC und Fernbus sind nicht dabei."
+            : "Keine Zugverbindung in den nächsten Stunden.",
+        };
       }
-      const approach = await approachLegs(input.mode, home, station, new Date(chosen.startTime), now);
+      const approach = await approachLegs(input.mode, home, station, new Date(chosen.startTime), now, ticket);
       const ride = pathLegs(chosen, station.name, school.name);
       const intoSchool = accessLeg(
         "walk",
@@ -754,7 +790,7 @@ export async function planTrip(input: {
         leaveAt: approach[0]?.departure || chosen.startTime,
         arriveAt: intoSchool.arrival,
         headline: summarize("hin", input.mode, punctual, firstRail(ride)),
-        note: !ownPlace ? `Beispielstrecke, live gerechnet. ${note}` : note,
+        note: `${!ownPlace ? "Beispielstrecke, live gerechnet. " : ""}${note}${ticket ? ` ${TICKET_NOTE}` : ""}`,
         places: { home: home.name, station: station.name, schoolStop: school.name },
         legs,
       };
@@ -764,18 +800,23 @@ export async function planTrip(input: {
 
     const when = new Date(input.departAt);
     const ready = Number.isNaN(when.getTime()) ? new Date() : when;
-    let rows = await transitPlan(school, station, ready, RAIL, { arriveBy: false, searchWindow: 2 * 60 * 60 });
+    let rows = await transitPlan(school, station, ready, railModes(ticket), { arriveBy: false, searchWindow: 2 * 60 * 60 }, ticket);
     let chosen = pickEarliest(rows, ready.getTime());
     if (!chosen?.startTime && rows.some((row) => transitLegs(row).some(legIsCancelled))) {
       const later = new Date(ready.getTime() + 20 * 60_000);
-      rows = await transitPlan(school, station, later, RAIL, { arriveBy: false, searchWindow: 2 * 60 * 60 });
+      rows = await transitPlan(school, station, later, railModes(ticket), { arriveBy: false, searchWindow: 2 * 60 * 60 }, ticket);
       chosen = pickEarliest(rows, ready.getTime());
     }
     if (!chosen?.startTime || !chosen.endTime) {
-      return { ok: false, error: "Keine Heimfahrt in den nächsten Stunden." };
+      return {
+        ok: false,
+        error: ticket
+          ? "Keine Heimfahrt mit dem Deutschlandticket. ICE, IC und Fernbus sind nicht dabei."
+          : "Keine Heimfahrt in den nächsten Stunden.",
+      };
     }
     const ride = pathLegs(chosen, school.name, station.name);
-    const after = await leaveStationLegs(input.mode, station, home, new Date(chosen.endTime));
+    const after = await leaveStationLegs(input.mode, station, home, new Date(chosen.endTime), ticket);
     let legs = [...ride, ...after];
     let leaveAt = chosen.startTime;
     const classEndMs = Date.parse(classEnd);
@@ -800,7 +841,7 @@ export async function planTrip(input: {
       leaveAt,
       arriveAt: homeAt,
       headline: summarize("heim", input.mode, punctual, firstRail(ride)),
-      note: !ownPlace ? `Beispielstrecke, live gerechnet. ${note}` : note,
+      note: `${!ownPlace ? "Beispielstrecke, live gerechnet. " : ""}${note}${ticket ? ` ${TICKET_NOTE}` : ""}`,
       places: { home: home.name, station: station.name, schoolStop: school.name },
       legs,
     };

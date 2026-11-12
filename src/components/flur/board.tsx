@@ -32,6 +32,7 @@ import { clockTextClass, resolveSize } from "@/lib/flur/clock";
 import { lessonSubject, lessonTeacher, shortenSubject } from "@/lib/flur/names";
 import { forgetProfile, loadProfiles, rememberProfile, type LocalProfile } from "@/lib/flur/profiles";
 import { countdownClock, hasRoute, hasUntis } from "@/lib/flur/settings";
+import { dbNavigatorUrl, mvgUrl } from "@/lib/flur/ticket";
 import { MODE_HINT, MODE_LABEL, type Lesson, type Mode, type NameMode, type TripLeg, type TripPlan } from "@/lib/flur/types";
 import { addDaysIso, berlinParts, formatDay, formatInstant, formatMinutes } from "@/lib/flur/time";
 
@@ -215,6 +216,31 @@ function BreakRow({ minutes }: { minutes: number }) {
   );
 }
 
+function rideApps(leg: TripLeg): Array<{ label: string; href: string }> {
+  const db = { label: leg.mode === "rail" ? "In DB Navigator" : "DB Navigator", href: dbNavigatorUrl(leg.from, leg.to, leg.departure) };
+  const mvg = { label: leg.mode === "bus" ? "In der MVG-App" : "MVG", href: mvgUrl(leg.from, leg.to) };
+  return leg.mode === "bus" ? [mvg, db] : [db, mvg];
+}
+
+function RideApps({ leg }: { leg: TripLeg }) {
+  if (leg.mode !== "rail" && leg.mode !== "bus") return null;
+  return (
+    <p className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
+      {rideApps(leg).map((app) => (
+        <a
+          key={app.label}
+          href={app.href}
+          target="_blank"
+          rel="noreferrer"
+          className="text-sm font-medium text-chalk underline-offset-2 hover:underline"
+        >
+          {app.label}
+        </a>
+      ))}
+    </p>
+  );
+}
+
 function tripMark(trip: TripPlan): { label: string; good: boolean } {
   if (trip.mode === "drive") return { label: "Fahrzeit", good: true };
   return { label: trip.punctual ? "pünktlich" : "Verspätung", good: trip.punctual };
@@ -275,6 +301,7 @@ function TripBody({ trip }: { trip: TripPlan }) {
                   {leg.delayMin > 0 ? ` · +${leg.delayMin} Min` : ""}
                   {leg.cancelled ? " · fällt aus" : ""}
                 </p>
+                <RideApps leg={leg} />
               </div>
             </li>
           );
@@ -323,22 +350,33 @@ function TripCard({
     <TripBody trip={trip} />
   );
 
+  const rides =
+    compact && trip ? trip.legs.filter((item) => item.mode === "rail" || item.mode === "bus").slice(0, 2) : [];
+
   if (!onOpen) {
     return <div className="flur-pad rounded-board border border-line bg-panel p-5">{body}</div>;
   }
 
   return (
-    <button
-      type="button"
-      onClick={onOpen}
-      className="flur-pad w-full rounded-board border border-line bg-panel p-5 text-left transition-colors hover:border-chalk"
-    >
-      <span className="mb-3 flex items-center justify-between text-sm font-medium text-paper">
-        {title}
-        <ChevronRight className="size-4 text-mist" aria-hidden="true" />
-      </span>
-      {body}
-    </button>
+    <div className="flur-pad rounded-board border border-line bg-panel p-5">
+      <button type="button" onClick={onOpen} className="w-full text-left">
+        <span className="mb-3 flex items-center justify-between text-sm font-medium text-paper">
+          {title}
+          <ChevronRight className="size-4 text-mist" aria-hidden="true" />
+        </span>
+        {body}
+      </button>
+      {rides.length > 0 ? (
+        <div className="mt-3 space-y-2 border-t border-line pt-3">
+          {rides.map((item, index) => (
+            <div key={`${item.title}-${item.departure}-${index}`}>
+              <p className="truncate text-sm">{item.title}</p>
+              <RideApps leg={item} />
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -885,6 +923,11 @@ export function Board() {
                       : leg === "hin"
                         ? "So knapp wie möglich zur ersten Stunde, die nicht ausfällt. Danach noch der Weg ins Schulhaus."
                         : "Erst der Weg vom Schulhaus zur Haltestelle, dann die früheste Zugverbindung."}
+                  {flur.route.mode === "drive"
+                    ? ""
+                    : flur.settings.deutschlandticket
+                      ? " Nur mit dem Deutschlandticket. Zug und Bus öffnen sich in DB Navigator oder der MVG-App."
+                      : " Zug und Bus öffnen sich in DB Navigator oder der MVG-App."}
                 </p>
               </div>
               <div className="grid grid-cols-2 gap-2" role="tablist" aria-label="Richtung">
@@ -1046,6 +1089,20 @@ export function Board() {
             />
 
             <div className="mt-4 overflow-hidden rounded-board border border-line bg-panel">
+              <label className="flex items-center gap-4 border-b border-line px-4 py-3">
+                <span className="min-w-0 flex-1">
+                  <span className="block font-medium">Deutschlandticket</span>
+                  <span className="mt-0.5 block text-sm text-pretty text-mist">
+                    Nur Nahverkehr und Regionalzug. Ohne ICE, IC und Fernbus.
+                  </span>
+                </span>
+                <input
+                  type="checkbox"
+                  className="apple-switch"
+                  checked={flur.settings.deutschlandticket}
+                  onChange={(event) => flur.setSettings({ ...flur.settings, deutschlandticket: event.target.checked })}
+                />
+              </label>
               <label className="flex items-center gap-4 border-b border-line px-4 py-3">
                 <span className="min-w-0 flex-1">
                   <span className="block font-medium">Platzoptimierung</span>
