@@ -31,6 +31,12 @@ export const Route = createRootRoute({
     <html lang="de" suppressHydrationWarning>
       <head>
         <HeadContent />
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              '(function(){try{var s=JSON.parse(localStorage.getItem("flur.settings.v1")||"");if(s&&s.theme==="glass")document.documentElement.dataset.theme="glass";}catch(e){}})();',
+          }}
+        />
       </head>
       <body>
         <PreviewHostBridge />

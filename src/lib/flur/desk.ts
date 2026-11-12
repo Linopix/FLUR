@@ -54,9 +54,11 @@ export type ChangeItem = {
   startMin: number;
   endMin: number;
   subject: string;
+  subjectShort?: string;
   kind: "cancelled" | "substitution";
   text: string;
   teacher: string;
+  teacherShort?: string;
   room: string;
   classes: string;
 };
@@ -398,9 +400,11 @@ export function changesFromDays(days: DeskDay[]): ChangeItem[] {
         startMin: lesson.startMin,
         endMin: lesson.endMin,
         subject: lesson.subject,
+        subjectShort: lesson.subjectShort,
         kind: lesson.status === "cancelled" ? "cancelled" : "substitution",
         text: lesson.info,
         teacher: lesson.teacher,
+        teacherShort: lesson.teacherShort,
         room: lesson.room,
         classes: "",
       });

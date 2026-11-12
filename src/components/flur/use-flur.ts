@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { demoBoard, demoTrip } from "@/lib/flur/demo";
 import { fetchBoard, fetchDesk, fetchServerBoard, fetchServerDesk, fetchServerProfile, fetchTrip } from "@/lib/flur/fns";
-import { loadDeskCache, saveDeskCache } from "@/lib/flur/cache";
+import { SERVER_CACHE_OWNER, cacheOwner, cachedAfterFailure, isAuthFailure, loadBoardCache, loadDeskCache, saveBoardCache, saveDeskCache } from "@/lib/flur/cache";
 import { demoDesk, type DeskData } from "@/lib/flur/desk";
 import { outboundAim, returnAim } from "@/lib/flur/plan";
-import { emptySettings, hasUntis, loadSettings, saveSettings } from "@/lib/flur/settings";
+import { emptySettings, hasUntis, loadSettings, saveSettings, applyTheme } from "@/lib/flur/settings";
 import type { DayBoard, Mode, ServerProfile, Settings, TripPlan } from "@/lib/flur/types";
 
 const BLANK_DAY: DayBoard = { source: "demo", iso: "", lessons: [] };
@@ -19,6 +19,8 @@ export function useFlur() {
   const [boardLive, setBoardLive] = useState(false);
   const [boardError, setBoardError] = useState<string | null>(null);
   const [boardLoading, setBoardLoading] = useState(false);
+  const [boardFromCache, setBoardFromCache] = useState(false);
+  const [boardOffline, setBoardOffline] = useState(false);
   const [hin, setHin] = useState<TripPlan | null>(null);
   const [heim, setHeim] = useState<TripPlan | null>(null);
   const [tripError, setTripError] = useState<string | null>(null);
@@ -27,15 +29,36 @@ export function useFlur() {
   const [deskError, setDeskError] = useState<string | null>(null);
   const [deskLoading, setDeskLoading] = useState(false);
   const [deskFromCache, setDeskFromCache] = useState(false);
+  const [deskOffline, setDeskOffline] = useState(false);
 
   useEffect(() => {
-    setSettingsState(loadSettings());
+    const loaded = loadSettings();
+    setSettingsState(loaded);
+    if (hasUntis(loaded)) {
+      const owner = cacheOwner(loaded);
+      const board = loadBoardCache(owner);
+      if (board) {
+        setToday(board.today);
+        setTomorrow(board.tomorrow);
+        setBoardFromCache(true);
+      }
+      const cachedDesk = loadDeskCache(owner);
+      if (cachedDesk) {
+        setDesk(cachedDesk);
+        setDeskFromCache(true);
+      }
+    }
     setHydrated(true);
     const tick = () => setNow(new Date());
     tick();
     const id = window.setInterval(tick, 1000);
     return () => window.clearInterval(id);
   }, []);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    applyTheme(settings.theme);
+  }, [hydrated, settings.theme]);
 
   useEffect(() => {
     let cancelled = false;
@@ -75,6 +98,7 @@ export function useFlur() {
   useEffect(() => {
     if (!hydrated) return;
     let cancelled = false;
+    let boardDenied = false;
     const run = async () => {
       if (!deviceUntis && !serverUntis) {
         const stamp = new Date();
@@ -82,8 +106,28 @@ export function useFlur() {
         setTomorrow(demoBoard("tomorrow", stamp));
         setBoardLive(false);
         setBoardError(null);
+        setBoardFromCache(false);
+        setBoardOffline(false);
         setBoardLoading(false);
         return;
+      }
+      const owner = deviceUntis ? cacheOwner(settings) : SERVER_CACHE_OWNER;
+      if (!boardDenied) {
+        const primed = loadBoardCache(owner);
+        if (primed) {
+          setToday(primed.today);
+          setTomorrow(primed.tomorrow);
+          setBoardLive(false);
+          setBoardError(null);
+          setBoardFromCache(true);
+          setBoardOffline(false);
+        } else {
+          setToday(BLANK_DAY);
+          setTomorrow(BLANK_DAY);
+          setBoardLive(false);
+          setBoardFromCache(false);
+          setBoardOffline(false);
+        }
       }
       setBoardLoading(true);
       try {
@@ -106,14 +150,41 @@ export function useFlur() {
           setTomorrow(result.tomorrow);
           setBoardLive(true);
           setBoardError(null);
+          setBoardFromCache(false);
+          setBoardOffline(false);
+          saveBoardCache(owner, result.today, result.tomorrow);
+          boardDenied = false;
         } else {
+          boardDenied = isAuthFailure(result.error);
+          const view = cachedAfterFailure(result.error, boardDenied ? null : loadBoardCache(owner));
           setBoardLive(false);
-          setBoardError(result.error);
+          if (view.show) {
+            setToday(view.show.today);
+            setTomorrow(view.show.tomorrow);
+          } else {
+            setToday(BLANK_DAY);
+            setTomorrow(BLANK_DAY);
+          }
+          setBoardError(view.error);
+          setBoardFromCache(Boolean(view.show));
+          setBoardOffline(view.offline);
         }
       } catch (error) {
         if (!cancelled) {
+          const message = error instanceof Error ? error.message : "Stundenplan nicht geladen.";
+          boardDenied = isAuthFailure(message);
+          const view = cachedAfterFailure(message, boardDenied ? null : loadBoardCache(owner));
           setBoardLive(false);
-          setBoardError(error instanceof Error ? error.message : "Stundenplan nicht geladen.");
+          if (view.show) {
+            setToday(view.show.today);
+            setTomorrow(view.show.tomorrow);
+          } else {
+            setToday(BLANK_DAY);
+            setTomorrow(BLANK_DAY);
+          }
+          setBoardError(view.error);
+          setBoardFromCache(Boolean(view.show));
+          setBoardOffline(view.offline);
         }
       } finally {
         if (!cancelled) setBoardLoading(false);
@@ -141,13 +212,29 @@ export function useFlur() {
   useEffect(() => {
     if (!hydrated) return;
     let cancelled = false;
+    let deskDenied = false;
     const run = async () => {
       if (!deviceUntis && !serverUntis) {
         setDesk(demoDesk(new Date()));
         setDeskError(null);
         setDeskFromCache(false);
+        setDeskOffline(false);
         setDeskLoading(false);
         return;
+      }
+      const owner = deviceUntis ? cacheOwner(settings) : SERVER_CACHE_OWNER;
+      if (!deskDenied) {
+        const primed = loadDeskCache(owner);
+        if (primed) {
+          setDesk(primed);
+          setDeskError(null);
+          setDeskFromCache(true);
+          setDeskOffline(false);
+        } else {
+          setDesk(null);
+          setDeskFromCache(false);
+          setDeskOffline(false);
+        }
       }
       setDeskLoading(true);
       try {
@@ -169,19 +256,26 @@ export function useFlur() {
           setDesk(result.desk);
           setDeskError(null);
           setDeskFromCache(false);
-          saveDeskCache(result.desk);
+          setDeskOffline(false);
+          saveDeskCache(owner, result.desk);
+          deskDenied = false;
         } else {
-          const cached = loadDeskCache();
-          setDeskError(result.error);
-          setDesk(cached);
-          setDeskFromCache(Boolean(cached));
+          deskDenied = isAuthFailure(result.error);
+          const view = cachedAfterFailure(result.error, deskDenied ? null : loadDeskCache(owner));
+          setDesk(view.show);
+          setDeskError(view.error);
+          setDeskFromCache(Boolean(view.show));
+          setDeskOffline(view.offline);
         }
       } catch (error) {
         if (!cancelled) {
-          const cached = loadDeskCache();
-          setDeskError(error instanceof Error ? error.message : "Schuldaten nicht geladen.");
-          setDesk(cached);
-          setDeskFromCache(Boolean(cached));
+          const message = error instanceof Error ? error.message : "Schuldaten nicht geladen.";
+          deskDenied = isAuthFailure(message);
+          const view = cachedAfterFailure(message, deskDenied ? null : loadDeskCache(owner));
+          setDesk(view.show);
+          setDeskError(view.error);
+          setDeskFromCache(Boolean(view.show));
+          setDeskOffline(view.offline);
         }
       } finally {
         if (!cancelled) setDeskLoading(false);
@@ -298,9 +392,12 @@ export function useFlur() {
     setHeim(null);
     setBoardLive(false);
     setBoardError(null);
+    setBoardFromCache(false);
+    setBoardOffline(false);
     setDesk(demoDesk(new Date()));
     setDeskError(null);
     setDeskFromCache(false);
+    setDeskOffline(false);
   }, []);
 
   return {
@@ -313,6 +410,8 @@ export function useFlur() {
     boardLive,
     boardError,
     boardLoading,
+    boardFromCache,
+    boardOffline,
     hin,
     heim,
     tripError,
@@ -321,6 +420,7 @@ export function useFlur() {
     deskError,
     deskLoading,
     deskFromCache,
+    deskOffline,
     exampleRoute,
     deviceUntis,
     serverUntis,

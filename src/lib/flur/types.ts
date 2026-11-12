@@ -1,14 +1,24 @@
 export type Who = "student" | "class" | "teacher";
 export type Mode = "bus" | "car" | "bike" | "walk" | "drive" | "link";
 export type LessonStatus = "regular" | "cancelled" | "substitution";
+export type NameFit = "auto" | "short" | "long" | "scroll";
+export type NameMode = "short" | "long" | "scroll";
+export type ClockFace = "digital" | "analog";
+export type DigitalDesign = "serif" | "split" | "led";
+export type AnalogDesign = "chalk" | "ring" | "school";
+export type ClockUnit = "auto" | "second" | "minute" | "hour";
+export type ClockSize = "auto" | "s" | "m" | "l";
 
 export type Lesson = {
   id: string;
   startMin: number;
   endMin: number;
   subject: string;
+  subjectShort?: string;
   teacher: string;
+  teacherShort?: string;
   originalTeacher: string;
+  originalTeacherShort?: string;
   room: string;
   info: string;
   status: LessonStatus;
@@ -64,6 +74,8 @@ export type ServerProfile = {
   whoName: string;
 };
 
+export type ThemeId = "chalk" | "glass";
+
 export type LoginKind = "password" | "secret";
 
 export type SchoolMatch = {
@@ -89,6 +101,22 @@ export type Settings = {
   mode: Mode;
   kioskRotate: boolean;
   countdown: boolean;
+  nameFit: NameFit;
+  clockFace: ClockFace;
+  clockDigital: DigitalDesign;
+  clockAnalog: AnalogDesign;
+  clockUnit: ClockUnit;
+  clockSize: ClockSize;
+  countdownOwn: boolean;
+  countFace: ClockFace;
+  countDigital: DigitalDesign;
+  countAnalog: AnalogDesign;
+  countUnit: ClockUnit;
+  countSize: ClockSize;
+  burnGuard: boolean;
+  infoScreen: boolean;
+  dense: boolean;
+  theme: ThemeId;
   onboarded: boolean;
 };
 

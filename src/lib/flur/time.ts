@@ -6,6 +6,7 @@ export function berlinParts(date = new Date()) {
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
+    second: "2-digit",
     hourCycle: "h23",
   }).formatToParts(date);
   const get = (type: Intl.DateTimeFormatPartTypes) =>
@@ -13,6 +14,7 @@ export function berlinParts(date = new Date()) {
   let hour = Number(get("hour"));
   if (hour === 24) hour = 0;
   const minute = Number(get("minute"));
+  const second = Number(get("second") || "0");
   const year = get("year");
   const month = get("month");
   const day = get("day");
@@ -22,6 +24,7 @@ export function berlinParts(date = new Date()) {
     day: Number(day),
     hour,
     minute,
+    second,
     minutes: hour * 60 + minute,
     iso: `${year}-${month}-${day}`,
     ymd: Number(`${year}${month}${day}`),

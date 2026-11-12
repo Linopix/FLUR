@@ -8,7 +8,7 @@ Eine offizielle Untis-App für den Mac gibt es nicht. FLUR ist der Ersatz: diese
 
 | Untis Mobile | FLUR |
 | --- | --- |
-| Heute, mit laufender Stunde | Heute, Uhr und nächste Stunde. Der Countdown auf der Startseite läuft auch über Tage, abschaltbar unter Mehr. |
+| Heute, mit laufender Stunde | Heute, Uhr und nächste Stunde. Der Countdown auf der Startseite läuft auch über Tage, abschaltbar unter Mehr. Uhrzeit und Countdown lassen sich getrennt als Ziffern oder Zeiger einstellen, mit Design, kleinster Einheit und Größe. Solange „Countdown separat“ aus ist, bleibt der Countdown wie die Uhrzeit. Auto wählt Größe und Einheit nach Bildschirm und Restdauer. |
 | Woche | Woche, diese und die nächsten. Fach antippen zeigt die anderen Termine dazu, auch Prüfungen. Am Mac und am breiten Bildschirm als Spalten. |
 | Vertretungen und Entfall | Änderungen aus dem eigenen Plan, sechs Wochen voraus. Fremde Klassen bleiben draußen. |
 | Prüfungen | Prüfungen, wenn die Schule sie über die Schnittstelle freigibt. |
@@ -18,11 +18,13 @@ Eine offizielle Untis-App für den Mac gibt es nicht. FLUR ist der Ersatz: diese
 | Pinnwand / Mitteilung des Tages | Pinnwand, meist nur mit dem Schul-Login aus den Freigaben. |
 | Mehrere Kinder | Bis zu sechs Konten, nur auf diesem Gerät. |
 | Kalender | Stunden und Prüfungen als Kalenderdatei. |
-| Offline | Der letzte erfolgreiche Abruf bleibt auf dem Gerät. |
+| Offline | Der letzte Stundenplan und die Schuldaten liegen auf dem Gerät und sind sofort wieder da, noch während FLUR neu lädt. „Offline“ steht erst dabei, wenn der nächste Abruf am Netz scheitert. Eine abgelehnte Anmeldung ist kein Offline: dann heißt es „Anmeldung abgelehnt“, und der alte Plan wird nicht als aktueller Stand gezeigt. |
 | Schulweg | Hinweg und Heimweg. Anschluss vergleicht Bus, Rad und Fuß an beiden Enden. Bahn+Auto fährt nur zum Bahnhof. Nur Auto fährt den ganzen Weg. |
-| Flur-Bildschirm | Automatischer Wechsel zwischen Heute, Hinweg und Heimweg. |
+| Flur-Bildschirm | Automatischer Wechsel zwischen Heute, Hinweg und Heimweg. Gegen Einbrennen rückt die Tafel langsam ein paar Pixel. In der Einrichtung lässt sich das Gerät als Infobildschirm markieren: dann sind Wechsel und Einbrennschutz an, und die Menüpunkte werden etwas größer. |
 
 Die Morgenpost bleibt unter Mehr: ein Text zum Kopieren. Automatischer Versand braucht ein Postfach und ist nicht angeschlossen.
+
+Fächer und Lehrkräfte stehen unter Mehr auf Auto, Kürzel, Ganz oder Laufen. Auto kürzt auf dem schmalen Bildschirm und schreibt auf dem breiten aus. Laufen schiebt einen zu langen Namen hin und her. Größe und kleinste Einheit der Uhr haben ebenfalls Auto. Der Countdown kann unter Mehr eine eigene Darstellung bekommen. Erscheinung ist Kreide oder Glas. Glas lässt den Goldton durchscheinend durch. Gegen Einbrennen steht unter Mehr und auf der letzten Seite der Einrichtung. Platzoptimierung rückt Heute enger zusammen, damit mehr Stunden auf die Tafel passen. Erscheinung, Namen und Uhr sind in Mehr zugeklappt, die Schalter darunter stehen in einer Liste.
 
 ## Was nicht geht
 
@@ -77,7 +79,7 @@ Es gibt keine signierte App-Store-Version. Die Ausgabe auf GitHub ist eine App f
 4. Beim ersten Start blockt macOS die App. Im Finder rechtsklicken, **Öffnen**, dann noch einmal **Öffnen**.
 5. Wer die Meldung schon weggeklickt hat: Systemeinstellungen, Datenschutz & Sicherheit, **Dennoch öffnen**.
 
-Die App spricht nur mit der Schule und mit dem Fahrplandienst. Sie enthält keinen eigenen Account.
+Die App spricht nur mit der Schule und mit dem Fahrplandienst. Sie enthält keinen eigenen Account. Die aktuelle Ausgabe ist **1.0.3**: Platzoptimierung, der gespeicherte Plan mit dem Unterschied zwischen Offline und abgelehnter Anmeldung, Glas, Infobildschirm, getrennte Uhren und die Menüleiste.
 
 Oben in der Menüleiste bleibt ein FLUR-Symbol, auch wenn das Fenster zu ist. Daneben stehen die laufende oder nächste Stunde und der nächste Zug, zum Beispiel `Mathe 08:15–09:00 · RB 24 +6`. Ein Klick auf das Symbol zeigt Vertretung oder Entfall und öffnet die Tafel. Beenden geht über dasselbe Menü, nicht über das Schließen des Fensters.
 

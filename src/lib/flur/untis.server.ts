@@ -43,6 +43,8 @@ type Named = {
   orgname?: string;
 };
 
+type CatalogName = { short: string; long: string };
+
 type RawLesson = {
   id?: number;
   date?: number;
@@ -243,7 +245,7 @@ async function rpc(
   }
   if (!response.ok) throw new Error(`WebUntis antwortet mit Status ${response.status}.`);
   const json = (await response.json()) as { result?: unknown; error?: { message?: string } };
-  if (json.error) throw new Error(json.error.message || "WebUntis hat die Anfrage abgelehnt.");
+  if (json.error) throw new Error(json.error.message || "WebUntis hat die Anfrage nicht ausgeführt.");
   return json.result;
 }
 
@@ -355,14 +357,18 @@ function personTypeOf(value: unknown): number {
   return 5;
 }
 
-function labelOf(entries: Named[] | undefined, catalog: Map<number, string>): string {
+function namePair(entries: Named[] | undefined, catalog: Map<number, CatalogName>): { long: string; short: string } {
   const entry = entries?.[0];
-  if (!entry) return "";
-  const long = entry.longname || entry.longName;
-  if (long && long.trim()) return long.trim();
-  if (entry.name && entry.name.trim()) return entry.name.trim();
-  if (entry.id != null && catalog.has(entry.id)) return catalog.get(entry.id) ?? "";
-  return "";
+  if (!entry) return { long: "", short: "" };
+  const fromCat = entry.id != null ? catalog.get(entry.id) : undefined;
+  const short = (entry.name || fromCat?.short || "").trim();
+  const long = (entry.longname || entry.longName || fromCat?.long || short).trim();
+  const same = short.toLocaleLowerCase("de") === long.toLocaleLowerCase("de");
+  return { long: long || short, short: short && !same ? short : "" };
+}
+
+function labelOf(entries: Named[] | undefined, catalog: Map<number, CatalogName>): string {
+  return namePair(entries, catalog).long;
 }
 
 function shortOf(entries: Named[] | undefined): string {
@@ -374,14 +380,17 @@ async function catalog(
   school: string,
   sessionId: string,
   method: string,
-): Promise<Map<number, string>> {
+): Promise<Map<number, CatalogName>> {
   try {
     const rows = (await rpc(base, school, method, {}, sessionId)) as Named[];
-    const map = new Map<number, string>();
+    const map = new Map<number, CatalogName>();
     if (!Array.isArray(rows)) return map;
     for (const row of rows) {
       if (row.id == null) continue;
-      map.set(row.id, (row.longname || row.longName || row.name || "").trim());
+      map.set(row.id, {
+        short: (row.name || "").trim(),
+        long: (row.longname || row.longName || row.name || "").trim(),
+      });
     }
     return map;
   } catch {
@@ -516,23 +525,26 @@ function statusOf(raw: RawLesson): LessonStatus {
 
 function toLesson(
   raw: RawLesson,
-  subjects: Map<number, string>,
-  teachers: Map<number, string>,
-  rooms: Map<number, string>,
+  subjects: Map<number, CatalogName>,
+  teachers: Map<number, CatalogName>,
+  rooms: Map<number, CatalogName>,
 ): Lesson | null {
   if (raw.date == null || raw.startTime == null || raw.endTime == null) return null;
   const status = statusOf(raw);
-  const teacher = labelOf(raw.te, teachers) || shortOf(raw.te);
+  const subject = namePair(raw.su, subjects);
+  const teacherPair = namePair(raw.te, teachers);
+  const teacher = teacherPair.long || shortOf(raw.te);
   const original = raw.te?.[0]?.orgname?.trim() || "";
   const info = [raw.substText, raw.lstext, raw.info].filter(Boolean).join(" · ");
   return {
-    id: String(raw.id ?? `${raw.date}-${raw.startTime}-${labelOf(raw.su, subjects)}`),
+    id: String(raw.id ?? `${raw.date}-${raw.startTime}-${subject.long}`),
     startMin: untisTimeToMinutes(raw.startTime),
     endMin: untisTimeToMinutes(raw.endTime),
-    subject: labelOf(raw.su, subjects) || "Unterricht",
+    subject: subject.long || "Unterricht",
+    subjectShort: subject.short,
     teacher,
-    originalTeacher:
-      original && original !== teacher && original !== shortOf(raw.te) ? original : "",
+    teacherShort: teacherPair.short,
+    originalTeacher: original && original !== teacher && original !== teacherPair.short && original !== shortOf(raw.te) ? original : "",
     room: labelOf(raw.ro, rooms) || shortOf(raw.ro),
     info: status === "cancelled" ? info || "entfällt" : info,
     status,
@@ -545,9 +557,9 @@ async function dayFor(
   session: Session,
   element: { id: number; type: number },
   ymd: number,
-  subjects: Map<number, string>,
-  teachers: Map<number, string>,
-  rooms: Map<number, string>,
+  subjects: Map<number, CatalogName>,
+  teachers: Map<number, CatalogName>,
+  rooms: Map<number, CatalogName>,
 ): Promise<DayBoard> {
   const result = (await rpc(
     base,
@@ -628,9 +640,9 @@ async function firstOk(attempts: Array<() => Promise<unknown>>): Promise<{ ok: t
 
 function lessonsOn(
   raws: RawLesson[],
-  subjects: Map<number, string>,
-  teachers: Map<number, string>,
-  rooms: Map<number, string>,
+  subjects: Map<number, CatalogName>,
+  teachers: Map<number, CatalogName>,
+  rooms: Map<number, CatalogName>,
 ): Map<string, Lesson[]> {
   const map = new Map<string, Lesson[]>();
   for (const raw of raws) {

@@ -17,19 +17,35 @@ import {
   Settings as SettingsIcon,
   Train,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { SchoolView } from "@/components/flur/school";
 import { Setup, type SetupStep } from "@/components/flur/setup";
 import { useFlur } from "@/components/flur/use-flur";
 import { WeekView } from "@/components/flur/week";
+import { TimeFace, useNarrow } from "@/components/flur/clock-face";
+import { DisplaySettings } from "@/components/flur/display-settings";
+import { NameLine, useNameMode } from "@/components/flur/names";
 import { DEMO_LESSONS, lessonSpan } from "@/lib/flur/demo";
 import { daysBetween, downloadIcs, nextCountdown, nextOpenDay, toIcs } from "@/lib/flur/desk";
+import { isAuthFailure } from "@/lib/flur/cache";
+import { clockTextClass, resolveSize } from "@/lib/flur/clock";
+import { lessonSubject, lessonTeacher, shortenSubject } from "@/lib/flur/names";
 import { forgetProfile, loadProfiles, rememberProfile, type LocalProfile } from "@/lib/flur/profiles";
-import { hasRoute, hasUntis } from "@/lib/flur/settings";
-import { MODE_HINT, MODE_LABEL, type Lesson, type Mode, type TripLeg, type TripPlan } from "@/lib/flur/types";
-import { addDaysIso, berlinParts, formatClock, formatDay, formatInstant, formatMinutes } from "@/lib/flur/time";
+import { countdownClock, hasRoute, hasUntis } from "@/lib/flur/settings";
+import { MODE_HINT, MODE_LABEL, type Lesson, type Mode, type NameMode, type TripLeg, type TripPlan } from "@/lib/flur/types";
+import { addDaysIso, berlinParts, formatDay, formatInstant, formatMinutes } from "@/lib/flur/time";
 
 type BarSnapshot = { lesson: string; change: string; ride: string };
+
+function subscribeReduce(onChange: () => void) {
+  const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+  media.addEventListener("change", onChange);
+  return () => media.removeEventListener("change", onChange);
+}
+
+function reduceNow() {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
 
 let lastBar = "";
 
@@ -77,18 +93,6 @@ function splitDay(label: string) {
   const comma = label.indexOf(",");
   if (comma === -1) return { weekday: label, rest: "" };
   return { weekday: label.slice(0, comma), rest: label.slice(comma + 1).trim() };
-}
-
-function formatRemain(ms: number): string {
-  const total = Math.max(0, Math.floor(ms / 1000));
-  const days = Math.floor(total / 86400);
-  const hours = Math.floor((total % 86400) / 3600);
-  const minutes = Math.floor((total % 3600) / 60);
-  const seconds = total % 60;
-  const clock = [hours, minutes, seconds].map((part) => String(part).padStart(2, "0")).join(":");
-  if (days > 0) return `${days} T ${clock}`;
-  if (hours > 0) return `${hours}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
-  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
 function heroClock(kind: "now" | "next" | "tomorrow", lesson: Lesson, minutes: number | null) {
@@ -139,7 +143,7 @@ function ModeSwitch({ mode, onChange }: { mode: Mode; onChange: (mode: Mode) => 
   );
 }
 
-function LessonRow({ lesson, minutes }: { lesson: Lesson; minutes: number | null }) {
+function LessonRow({ lesson, minutes, names }: { lesson: Lesson; minutes: number | null; names: NameMode }) {
   const current =
     minutes != null && lesson.status !== "cancelled" && lesson.startMin <= minutes && minutes < lesson.endMin;
   const past = minutes != null && minutes >= lesson.endMin;
@@ -149,7 +153,7 @@ function LessonRow({ lesson, minutes }: { lesson: Lesson; minutes: number | null
   return (
     <li
       className={
-        "grid grid-cols-[4.25rem_0.35rem_minmax(0,1fr)] items-stretch gap-3 rounded-xl px-3 py-3 " +
+        "flur-lesson grid grid-cols-[4.25rem_0.35rem_minmax(0,1fr)] items-stretch gap-3 rounded-xl px-3 py-3 " +
         (current ? "bg-now" : "")
       }
     >
@@ -167,19 +171,25 @@ function LessonRow({ lesson, minutes }: { lesson: Lesson; minutes: number | null
         <div className="flex items-baseline justify-between gap-3">
           <h3
             className={
-              "truncate text-lg font-semibold tracking-tight " +
+              "min-w-0 flex-1 text-lg font-semibold tracking-tight " +
               (lesson.status === "cancelled" ? "text-secondary line-through" : past ? "text-secondary" : "text-label")
             }
           >
-            {lesson.subject}
+            <NameLine text={lessonSubject(lesson, names)} label={lesson.subject} mode={names} />
           </h3>
           {lesson.room ? <span className="shrink-0 text-sm text-secondary">{lesson.room}</span> : null}
         </div>
-        <p className="mt-0.5 truncate text-sm text-secondary">
-          {lesson.originalTeacher
-            ? `${lesson.teacher} statt ${lesson.originalTeacher}`
-            : lesson.teacher || "Lehrkraft offen"}
-        </p>
+        <div
+          className={
+            "mt-0.5 text-sm " + (lesson.status === "cancelled" || past ? "text-secondary" : "text-secondary")
+          }
+        >
+          <NameLine
+            text={lesson.teacher ? lessonTeacher(lesson, names) : "Lehrkraft offen"}
+            label={lesson.teacher ? lessonTeacher(lesson, "long") : undefined}
+            mode={names}
+          />
+        </div>
         {badge ? (
           <p className={"mt-1 text-sm font-semibold " + (lesson.status === "cancelled" ? "text-danger" : "text-accent")}>
             {badge}
@@ -314,14 +324,14 @@ function TripCard({
   );
 
   if (!onOpen) {
-    return <div className="rounded-board border border-line bg-panel p-5">{body}</div>;
+    return <div className="flur-pad rounded-board border border-line bg-panel p-5">{body}</div>;
   }
 
   return (
     <button
       type="button"
       onClick={onOpen}
-      className="w-full rounded-board border border-line bg-panel p-5 text-left transition-colors hover:border-chalk"
+      className="flur-pad w-full rounded-board border border-line bg-panel p-5 text-left transition-colors hover:border-chalk"
     >
       <span className="mb-3 flex items-center justify-between text-sm font-medium text-paper">
         {title}
@@ -368,6 +378,12 @@ function digestText(input: {
 
 export function Board() {
   const flur = useFlur();
+  const names = useNameMode(flur.settings.nameFit);
+  const narrow = useNarrow();
+  const reduceMotion = useSyncExternalStore(subscribeReduce, reduceNow, () => false);
+  const countStyle = countdownClock(flur.settings);
+  const heroSize = resolveSize(flur.settings.clockSize, narrow);
+  const drift = flur.settings.burnGuard && !reduceMotion;
   const [view, setView] = useState<View>("heute");
   const [leg, setLeg] = useState<Leg>("hin");
   const [copied, setCopied] = useState(false);
@@ -395,7 +411,15 @@ export function Board() {
           flur.tomorrow.iso ? { iso: flur.tomorrow.iso, lessons: flur.tomorrow.lessons } : null,
         ].filter((day): day is { iso: string; lessons: Lesson[] } => Boolean(day?.iso));
   const countdown = flur.settings.countdown && flur.now ? nextCountdown(flur.now, countdownDays) : null;
-  const remain = countdown && flur.now ? formatRemain(countdown.at - flur.now.getTime()) : "";
+  const remainMs = countdown && flur.now ? countdown.at - flur.now.getTime() : null;
+  const countdownName = (() => {
+    if (!countdown) return "";
+    const lesson = countdownDays
+      .find((day) => day.iso === countdown.iso)
+      ?.lessons.find((item) => item.subject === countdown.subject);
+    if (lesson) return lessonSubject(lesson, names);
+    return names === "short" ? shortenSubject(countdown.subject) : countdown.subject;
+  })();
   const todayIso = flur.now ? berlinParts(flur.now).iso : "";
   const selectedIso = todayIso ? addDaysIso(todayIso, dayShift) : "";
   const shifted = dayShift !== 0;
@@ -493,17 +517,24 @@ export function Board() {
     setView("wege");
   }
 
-  const sourceLabel = flur.boardError
-    ? /abgelehnt|passwort|falsch/i.test(flur.boardError)
-      ? "Anmeldung abgelehnt"
-      : "WebUntis nicht erreichbar"
-    : flur.boardLive
-      ? "Live aus WebUntis"
-      : flur.boardLoading
-        ? "Wird geladen"
-        : "Beispieltag";
+  const authError = Boolean(flur.boardError && isAuthFailure(flur.boardError));
+  const sourceLabel = authError
+    ? "Anmeldung abgelehnt"
+    : flur.boardError
+      ? "WebUntis nicht erreichbar"
+      : flur.boardOffline
+        ? "Offline, zuletzt gespeichert"
+        : flur.boardLive
+          ? "Live aus WebUntis"
+          : flur.boardLoading && flur.boardFromCache
+            ? "Wird aktualisiert"
+            : flur.boardFromCache
+              ? "Zuletzt gespeichert"
+              : flur.boardLoading
+                ? "Wird geladen"
+                : "Beispieltag";
 
-  const kicker = flur.boardError
+  const kicker = authError
     ? "Zugang"
     : focus?.kind === "now"
       ? "Jetzt"
@@ -515,11 +546,11 @@ export function Board() {
             ? "Demnächst"
             : "Heute";
 
-  const planStatus = flur.boardError
-    ? /abgelehnt|passwort|falsch/i.test(flur.boardError)
-      ? "Anmeldung abgelehnt"
-      : "Nicht erreichbar"
-    : hasUntis(flur.settings)
+  const planStatus = authError
+    ? "Anmeldung abgelehnt"
+    : flur.boardError
+      ? "Nicht erreichbar"
+      : hasUntis(flur.settings)
       ? flur.settings.schoolLabel.trim() || flur.settings.school.trim() || "WebUntis"
       : flur.serverUntis
         ? flur.profile?.school || "Über den Server"
@@ -553,8 +584,17 @@ export function Board() {
   }
 
   return (
-    <div className="flur-page min-h-dvh text-paper">
-      <header className="flex items-start justify-between gap-4 px-4 pt-5 md:px-8 md:pt-8">
+    <div
+      className={
+        "flur-page min-h-dvh text-paper" +
+        (drift ? " flur-drift" : "") +
+        (flur.settings.infoScreen ? " flur-touch" : "") +
+        (flur.settings.dense ? " flur-dense" : "")
+      }
+    >
+      <div className="flur-stage relative">
+      {drift ? <div className="flur-wash" aria-hidden="true" /> : null}
+      <header className="relative z-10 flex items-start justify-between gap-4 px-4 pt-5 md:px-8 md:pt-8">
         <div className="min-w-0">
           <p className="font-display text-sm tracking-widest text-chalk">FLUR</p>
           <h1 className="mt-2 font-display text-3xl leading-none text-balance md:text-5xl">{weekday}</h1>
@@ -563,7 +603,7 @@ export function Board() {
             <span
               className={
                 "size-1.5 shrink-0 rounded-full " +
-                (flur.boardError ? "bg-rust" : flur.boardLive ? "bg-chalk" : "bg-mist")
+                (authError ? "bg-rust" : flur.boardOffline ? "bg-mist" : flur.boardLive ? "bg-chalk" : "bg-mist")
               }
               aria-hidden="true"
             />
@@ -571,9 +611,16 @@ export function Board() {
           </p>
         </div>
         <div className="flex items-start gap-2">
-          <p className="font-display text-4xl tabular-nums leading-none tracking-tight md:text-6xl">
-            {flur.now ? formatClock(flur.now) : "––:––"}
-          </p>
+          <TimeFace
+            kind="rtc"
+            now={flur.now}
+            remainMs={null}
+            face={flur.settings.clockFace}
+            digital={flur.settings.clockDigital}
+            analog={flur.settings.clockAnalog}
+            unit={flur.settings.clockUnit}
+            size={flur.settings.clockSize}
+          />
           <button
             type="button"
             onClick={toggleFullscreen}
@@ -585,7 +632,7 @@ export function Board() {
         </div>
       </header>
 
-      <nav className="mt-5 hidden flex-wrap items-center gap-2 px-8 md:flex" aria-label="Ansichten">
+      <nav className="flur-nav relative z-10 mt-5 hidden flex-wrap items-center gap-2 px-8 md:flex" aria-label="Ansichten">
         {NAV.map((item) => {
           const Icon = item.icon;
           const active = view === item.id;
@@ -596,55 +643,80 @@ export function Board() {
               onClick={() => setView(item.id)}
               aria-current={active ? "page" : undefined}
               className={
-                "flex h-11 items-center gap-2 rounded-full border px-4 text-sm font-medium transition-colors " +
-                (active ? "border-chalk bg-chalk text-chalk-ink" : "border-line text-paper hover:border-chalk")
+                "flur-tap flex items-center gap-2 rounded-full border font-medium " +
+                (flur.settings.infoScreen ? "h-14 px-5 text-base" : "h-11 px-4 text-sm") +
+                (active ? " border-chalk bg-chalk text-chalk-ink" : " border-line text-paper hover:border-chalk")
               }
             >
-              <Icon className="size-4" aria-hidden="true" />
+              <Icon className={flur.settings.infoScreen ? "size-5" : "size-4"} aria-hidden="true" />
               {item.label}
             </button>
           );
         })}
         <Link
           to="/uhr"
-          className="flex h-11 items-center rounded-full border border-line px-4 text-sm font-medium text-paper transition-colors hover:border-chalk"
+          className={
+            "flur-tap flex items-center rounded-full border border-line font-medium text-paper hover:border-chalk " +
+            (flur.settings.infoScreen ? "h-14 px-5 text-base" : "h-11 px-4 text-sm")
+          }
         >
           Uhr
         </Link>
       </nav>
 
-      <main className="px-4 py-5 md:px-8 md:py-6">
+      <main className="relative z-10 px-4 py-5 md:px-8 md:py-6">
+        <div key={view} className="flur-view">
         {view === "heute" ? (
-          <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(18rem,26rem)_minmax(0,1fr)] lg:items-start lg:gap-5">
-            <div className="contents lg:flex lg:flex-col lg:gap-5">
-              <section className="order-1 rounded-board border border-line bg-panel p-5 md:p-6">
+          <div className="flur-board flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(18rem,26rem)_minmax(0,1fr)] lg:items-start lg:gap-5">
+            <div className="flur-stack contents lg:flex lg:flex-col lg:gap-5">
+              <section className="flur-hero order-1 rounded-board border border-line bg-panel p-5 md:p-6">
                 <div className="flex items-end justify-between gap-4">
                   <p className="text-sm font-medium text-chalk">{kicker}</p>
-                  {countdown ? (
-                    <p className="text-right leading-none">
-                      <span className="block font-display text-4xl tabular-nums md:text-5xl">{remain}</span>
+                  {countdown && remainMs != null ? (
+                    <div className="text-right leading-none">
+                      <TimeFace
+                        kind="countdown"
+                        now={flur.now}
+                        remainMs={remainMs}
+                        face={countStyle.face}
+                        digital={countStyle.digital}
+                        analog={countStyle.analog}
+                        unit={countStyle.unit}
+                        size={countStyle.size}
+                      />
                       <span className="mt-1 block text-sm text-mist">
-                        {countdown.phase === "end" ? `${countdown.subject} endet` : `bis ${countdown.subject}`}
+                        {countdown.phase === "end" ? `${countdownName} endet` : `bis ${countdownName}`}
                       </span>
-                    </p>
+                    </div>
                   ) : clock ? (
                     <p className="text-right leading-none">
-                      <span className="block font-display text-5xl tabular-nums md:text-6xl">{clock.value}</span>
+                      <span className={"block font-display tabular-nums " + clockTextClass(heroSize)}>{clock.value}</span>
                       <span className="mt-1 block text-sm text-mist">{clock.unit}</span>
                     </p>
                   ) : null}
                 </div>
-                {flur.boardError ? (
+                {authError ? (
                   <h2 className="mt-2 font-display text-4xl text-balance">Anmeldung</h2>
                 ) : focus ? (
                   <>
-                    <h2 className="mt-2 font-display text-4xl text-balance md:text-5xl">{focus.lesson.subject}</h2>
+                    <h2 className="mt-2 min-w-0">
+                      <NameLine
+                        text={lessonSubject(focus.lesson, names)}
+                        label={focus.lesson.subject}
+                        mode={names}
+                        className="font-display text-4xl md:text-5xl"
+                      />
+                    </h2>
                     <p className="mt-3 text-base text-mist">
                       {lessonSpan(focus.lesson)}
                       {" · "}
                       {focus.lesson.room ? `Raum ${focus.lesson.room}` : "Raum offen"}
-                      {focus.lesson.teacher ? ` · ${focus.lesson.teacher}` : ""}
                     </p>
+                    {focus.lesson.teacher ? (
+                      <div className="mt-1 text-base text-mist">
+                        <NameLine text={lessonTeacher(focus.lesson, names)} label={lessonTeacher(focus.lesson, "long")} mode={names} />
+                      </div>
+                    ) : null}
                   </>
                 ) : later ? (
                   <>
@@ -661,8 +733,12 @@ export function Board() {
                 ) : (
                   <h2 className="mt-2 font-display text-4xl">Frei</h2>
                 )}
-                {flur.boardError ? <p className="mt-4 text-sm text-pretty text-rust">{flur.boardError}</p> : null}
-                {flur.boardError ? (
+                {authError ? <p className="mt-4 text-sm text-pretty text-rust">{flur.boardError}</p> : null}
+                {flur.boardError && !authError ? <p className="mt-4 text-sm text-pretty text-rust">{flur.boardError}</p> : null}
+                {flur.boardOffline ? (
+                  <p className="mt-4 text-sm text-pretty text-mist">Offline. Der letzte Stundenplan von diesem Gerät.</p>
+                ) : null}
+                {authError ? (
                   <button type="button" className="mt-3 h-11 text-sm font-semibold text-chalk" onClick={() => setSetupStep("login")}>
                     Zugang prüfen
                   </button>
@@ -674,7 +750,7 @@ export function Board() {
                 <TripCard trip={flur.heim} loading={flur.tripLoading && !flur.heim} compact onOpen={() => openLeg("heim")} />
               </div>
 
-              <section className="order-3 rounded-board border border-line bg-panel p-5">
+              <section className="flur-pad order-3 rounded-board border border-line bg-panel p-5">
                 <h2 className="text-sm text-mist">Änderungen</h2>
                 {changes.length === 0 ? (
                   <p className="mt-3 text-pretty">Keine Vertretung. Nichts entfällt.</p>
@@ -690,9 +766,12 @@ export function Board() {
                           aria-hidden="true"
                         />
                         <div className="min-w-0">
-                          <p className={lesson.status === "cancelled" ? "text-rust" : "text-chalk"}>
-                            {statusLabel(lesson)} · {lesson.subject}
-                          </p>
+                          <NameLine
+                            text={`${statusLabel(lesson)} · ${lessonSubject(lesson, names)}`}
+                            label={`${statusLabel(lesson)} · ${lesson.subject}`}
+                            mode={names}
+                            className={lesson.status === "cancelled" ? "text-rust" : "text-chalk"}
+                          />
                           <p className="text-sm text-mist">
                             {lessonSpan(lesson)}
                             {lesson.room ? ` · ${lesson.room}` : ""}
@@ -752,7 +831,7 @@ export function Board() {
                 <ol className="mt-1">
                   {breaks.map((row) =>
                     row.kind === "lesson" ? (
-                      <LessonRow key={row.lesson.id} lesson={row.lesson} minutes={listMinutes} />
+                      <LessonRow key={row.lesson.id} lesson={row.lesson} minutes={listMinutes} names={names} />
                     ) : (
                       <BreakRow key={`break-${row.at}`} minutes={row.minutes} />
                     ),
@@ -764,7 +843,7 @@ export function Board() {
                   <h3 className="text-sm text-mist">Morgen</h3>
                   <ul className="mt-1">
                     {flur.tomorrow.lessons.map((lesson) => (
-                      <LessonRow key={lesson.id} lesson={lesson} minutes={null} />
+                      <LessonRow key={lesson.id} lesson={lesson} minutes={null} names={names} />
                     ))}
                   </ul>
                 </div>
@@ -779,13 +858,14 @@ export function Board() {
             now={flur.now}
             loading={flur.deskLoading}
             error={flur.deskError}
-            fromCache={flur.deskFromCache}
+            fromCache={flur.deskOffline}
             onExport={exportCalendar}
+            names={names}
           />
         ) : null}
 
         {view === "schule" ? (
-          <SchoolView desk={flur.desk} loading={flur.deskLoading} error={flur.deskError} fromCache={flur.deskFromCache} />
+          <SchoolView desk={flur.desk} loading={flur.deskLoading} error={flur.deskError} fromCache={flur.deskOffline} names={names} />
         ) : null}
 
         {view === "wege" ? (
@@ -868,7 +948,7 @@ export function Board() {
         {view === "setup" ? (
           <div className="mx-auto max-w-lg">
             <h2 className="font-display text-4xl">Einstellungen</h2>
-            <p className="mt-2 text-pretty text-mist">Plan und Weg. Die Tafel selbst bleibt unverändert.</p>
+            <p className="mt-2 text-pretty text-mist">Plan, Weg und wie die Tafel aussieht.</p>
 
             <div className="mt-6 overflow-hidden rounded-board border border-line bg-panel">
               <button
@@ -958,33 +1038,86 @@ export function Board() {
               </button>
             </div>
 
-            <label className="mt-4 flex items-center gap-4 rounded-board border border-line bg-panel px-4 py-4">
-              <span className="min-w-0 flex-1">
-                <span className="block font-medium">Countdown</span>
-                <span className="mt-1 block text-sm text-pretty text-mist">
-                  Auf der Startseite bis zur nächsten Stunde zählen, auch wenn es noch Tage sind.
-                </span>
-              </span>
-              <input
-                type="checkbox"
-                className="apple-switch"
-                checked={flur.settings.countdown}
-                onChange={(event) => flur.setSettings({ ...flur.settings, countdown: event.target.checked })}
-              />
-            </label>
+            <DisplaySettings
+              settings={flur.settings}
+              now={flur.now}
+              remainMs={flur.settings.countdown ? remainMs : null}
+              onChange={(patch) => flur.setSettings({ ...flur.settings, ...patch })}
+            />
 
-            <label className="mt-4 flex items-center gap-4 rounded-board border border-line bg-panel px-4 py-4">
-              <span className="min-w-0 flex-1">
-                <span className="block font-medium">Automatisch wechseln</span>
-                <span className="mt-1 block text-sm text-pretty text-mist">Heute, Hinweg und Heimweg im Wechsel.</span>
-              </span>
-              <input
-                type="checkbox"
-                className="apple-switch"
-                checked={flur.settings.kioskRotate}
-                onChange={(event) => flur.setSettings({ ...flur.settings, kioskRotate: event.target.checked })}
-              />
-            </label>
+            <div className="mt-4 overflow-hidden rounded-board border border-line bg-panel">
+              <label className="flex items-center gap-4 border-b border-line px-4 py-3">
+                <span className="min-w-0 flex-1">
+                  <span className="block font-medium">Platzoptimierung</span>
+                  <span className="mt-0.5 block text-sm text-pretty text-mist">
+                    Weniger Abstand, damit mehr Stunden auf die Tafel passen.
+                  </span>
+                </span>
+                <input
+                  type="checkbox"
+                  className="apple-switch"
+                  checked={flur.settings.dense}
+                  onChange={(event) => flur.setSettings({ ...flur.settings, dense: event.target.checked })}
+                />
+              </label>
+              <label className="flex items-center gap-4 border-b border-line px-4 py-3">
+                <span className="min-w-0 flex-1">
+                  <span className="block font-medium">Countdown</span>
+                  <span className="mt-0.5 block text-sm text-pretty text-mist">Bis zur nächsten Stunde, auch über Tage.</span>
+                </span>
+                <input
+                  type="checkbox"
+                  className="apple-switch"
+                  checked={flur.settings.countdown}
+                  onChange={(event) => flur.setSettings({ ...flur.settings, countdown: event.target.checked })}
+                />
+              </label>
+              <label className="flex items-center gap-4 border-b border-line px-4 py-3">
+                <span className="min-w-0 flex-1">
+                  <span className="block font-medium">Infobildschirm</span>
+                  <span className="mt-0.5 block text-sm text-pretty text-mist">
+                    Größere Menüpunkte. Schaltet Wechsel und Einbrennschutz ein.
+                  </span>
+                </span>
+                <input
+                  type="checkbox"
+                  className="apple-switch"
+                  checked={flur.settings.infoScreen}
+                  onChange={(event) => {
+                    const on = event.target.checked;
+                    flur.setSettings({
+                      ...flur.settings,
+                      infoScreen: on,
+                      ...(on ? { kioskRotate: true, burnGuard: true } : {}),
+                    });
+                  }}
+                />
+              </label>
+              <label className="flex items-center gap-4 border-b border-line px-4 py-3">
+                <span className="min-w-0 flex-1">
+                  <span className="block font-medium">Automatisch wechseln</span>
+                  <span className="mt-0.5 block text-sm text-pretty text-mist">Heute, Hinweg und Heimweg im Wechsel.</span>
+                </span>
+                <input
+                  type="checkbox"
+                  className="apple-switch"
+                  checked={flur.settings.kioskRotate}
+                  onChange={(event) => flur.setSettings({ ...flur.settings, kioskRotate: event.target.checked })}
+                />
+              </label>
+              <label className="flex items-center gap-4 px-4 py-3">
+                <span className="min-w-0 flex-1">
+                  <span className="block font-medium">Gegen Einbrennen</span>
+                  <span className="mt-0.5 block text-sm text-pretty text-mist">Die Tafel rückt langsam ein paar Pixel.</span>
+                </span>
+                <input
+                  type="checkbox"
+                  className="apple-switch"
+                  checked={flur.settings.burnGuard}
+                  onChange={(event) => flur.setSettings({ ...flur.settings, burnGuard: event.target.checked })}
+                />
+              </label>
+            </div>
 
             <Link
               to="/uhr"
@@ -1013,7 +1146,9 @@ export function Board() {
             </button>
           </div>
         ) : null}
+        </div>
       </main>
+      </div>
 
       <nav className="flur-dock md:hidden" aria-label="Ansichten">
         {NAV.map((item) => {
@@ -1026,11 +1161,12 @@ export function Board() {
               onClick={() => setView(item.id)}
               aria-current={active ? "page" : undefined}
               className={
-                "flex h-14 flex-col items-center justify-center gap-1 rounded-2xl text-xs font-medium " +
-                (active ? "bg-chalk text-chalk-ink" : "text-mist")
+                "flur-tap flex flex-col items-center justify-center gap-1 rounded-2xl font-medium " +
+                (flur.settings.infoScreen ? "h-[4.35rem] text-[13px]" : "h-14 text-xs") +
+                (active ? " bg-chalk text-chalk-ink" : " text-mist")
               }
             >
-              <Icon className="size-5" aria-hidden="true" />
+              <Icon className={flur.settings.infoScreen ? "size-6" : "size-5"} aria-hidden="true" />
               {item.label}
             </button>
           );

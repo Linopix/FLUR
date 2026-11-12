@@ -1,14 +1,15 @@
-import { Bike, Bus, Car, ChevronLeft, Footprints, QrCode, Route, Search } from "lucide-react";
+import { Bike, Bus, Car, ChevronLeft, Footprints, Monitor, QrCode, Route, Search, Smartphone } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { ThemePicker } from "@/components/flur/display-settings";
 import { parseUntisAccess } from "@/lib/flur/access";
 import { filterDirectory, type DirectoryItem } from "@/lib/flur/directory";
 import { checkLogin, listDirectory, searchSchools } from "@/lib/flur/fns";
-import { hasRoute, hasUntis } from "@/lib/flur/settings";
+import { applyTheme, hasRoute, hasUntis, loadSettings } from "@/lib/flur/settings";
 import { MODE_HINT, MODE_LABEL, type LoginKind, type Mode, type SchoolMatch, type ServerProfile, type Settings, type Who } from "@/lib/flur/types";
 
-export type SetupStep = "welcome" | "school" | "who" | "login" | "route" | "done";
+export type SetupStep = "welcome" | "school" | "who" | "login" | "route" | "screen" | "done";
 
-const STEPS: SetupStep[] = ["school", "login", "who", "route", "done"];
+const STEPS: SetupStep[] = ["school", "login", "who", "route", "screen", "done"];
 
 const SSO_STEPS = [
   "In WebUntis im Browser wie gewohnt über die Schule anmelden.",
@@ -290,6 +291,16 @@ export function Setup({
       ? `${profile.station} · ${MODE_LABEL[(profile.mode || draft.mode) as Mode]}`
       : "Beispielweg";
 
+  useEffect(() => {
+    applyTheme(draft.theme);
+    return () => applyTheme(loadSettings().theme);
+  }, [draft.theme]);
+
+  function chooseScreen(info: boolean) {
+    setDraft({ ...draft, infoScreen: info, kioskRotate: info, burnGuard: info });
+    go("done");
+  }
+
   function go(next: SetupStep) {
     trail.current = [...trail.current, step];
     setHint("");
@@ -464,7 +475,13 @@ export function Setup({
   }
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-lg flex-col px-5 pt-6 pb-8 md:px-0 md:pt-16">
+    <div className={"relative min-h-dvh overflow-hidden" + (draft.infoScreen ? " flur-touch" : "")}>
+      <div className="setup-wash" aria-hidden="true">
+        <span className="setup-orb setup-orb-a" />
+        <span className="setup-orb setup-orb-b" />
+        <span className="setup-orb setup-orb-c" />
+      </div>
+    <main className="relative z-10 mx-auto flex min-h-dvh w-full max-w-lg flex-col px-5 pt-6 pb-8 md:px-0 md:pt-16">
       <header className="flex items-center justify-between gap-3">
         {step === "welcome" ? (
           <p className="font-display text-sm tracking-widest text-chalk">FLUR</p>
@@ -486,7 +503,7 @@ export function Setup({
       {step !== "welcome" ? (
         <div className="mt-4 flex gap-2" aria-hidden="true">
           {STEPS.map((item, itemIndex) => (
-            <span key={item} className={"h-1 flex-1 rounded-full " + (itemIndex <= index ? "bg-chalk" : "bg-line")} />
+            <span key={item} className={"h-1 flex-1 rounded-full transition-colors duration-300 " + (itemIndex <= index ? "bg-chalk" : "bg-line")} />
           ))}
         </div>
       ) : null}
@@ -499,7 +516,7 @@ export function Setup({
               Stundenplan, nächster Zug und der Weg nach Hause. Einmal eingerichtet, bleibt die Tafel von allein
               aktuell.
             </p>
-            <ul className="mt-8 space-y-4">
+            <ul className="setup-points mt-8 space-y-4">
               {["Schule suchen, ohne Server-Adresse", "Dein Stundenplan", "Heimweg nach der letzten Stunde"].map(
                 (item) => (
                   <li key={item} className="flex items-center gap-3 text-base">
@@ -795,11 +812,36 @@ export function Setup({
               ) : null}
             </div>
             <div className="mt-auto flex flex-col gap-3 pt-8">
-              <button type="button" className="apple-btn w-full" onClick={() => go("done")}>
+              <button type="button" className="apple-btn w-full" onClick={() => go("screen")}>
                 Weiter
               </button>
-              <button type="button" className="h-11 text-sm font-medium text-mist" onClick={() => go("done")}>
+              <button type="button" className="h-11 text-sm font-medium text-mist" onClick={() => go("screen")}>
                 Ohne Weg weiter
+              </button>
+            </div>
+          </>
+        ) : null}
+
+        {step === "screen" ? (
+          <>
+            <h1 className="font-display text-4xl text-balance">Was für ein Gerät?</h1>
+            <p className="mt-3 text-pretty text-mist">
+              Ein Infobildschirm im Flur bleibt an. Die Menüpunkte werden etwas größer, damit man sie mit dem Finger trifft.
+            </p>
+            <div className="mt-6 grid gap-3">
+              <button type="button" className="screen-choice" onClick={() => chooseScreen(true)}>
+                <Monitor className="size-5 text-chalk" aria-hidden="true" />
+                <span className="mt-3 block font-medium">Infobildschirm</span>
+                <span className="mt-1 block text-sm text-pretty text-mist">
+                  Heute, Hinweg und Heimweg wechseln sich ab. Die Tafel rückt langsam, damit nichts einbrennt.
+                </span>
+              </button>
+              <button type="button" className="screen-choice" onClick={() => chooseScreen(false)}>
+                <Smartphone className="size-5 text-chalk" aria-hidden="true" />
+                <span className="mt-3 block font-medium">Handy oder Rechner</span>
+                <span className="mt-1 block text-sm text-pretty text-mist">
+                  Kompakte Tasten. Wechsel und Einbrennschutz bleiben aus.
+                </span>
               </button>
             </div>
           </>
@@ -809,7 +851,11 @@ export function Setup({
           <>
             <h1 className="font-display text-4xl text-balance">Bereit</h1>
             <p className="mt-3 text-pretty text-mist">So startet die Tafel.</p>
-            <dl className="mt-6 overflow-hidden rounded-board border border-line bg-panel">
+            <div className="mt-6">
+              <p className="mb-2 text-sm text-mist">Erscheinung</p>
+              <ThemePicker value={draft.theme} onChange={(theme) => setDraft({ ...draft, theme })} />
+            </div>
+            <dl className="mt-4 overflow-hidden rounded-board border border-line bg-panel">
               <div className="flex items-center justify-between gap-4 border-b border-line px-4 py-4">
                 <dt className="text-mist">Stundenplan</dt>
                 <dd className="truncate font-medium">{planLabel}</dd>
@@ -845,6 +891,20 @@ export function Setup({
                 onChange={(event) => setDraft({ ...draft, kioskRotate: event.target.checked })}
               />
             </label>
+            <label className="mt-4 flex items-center gap-4 rounded-board border border-line bg-panel px-4 py-4">
+              <span className="min-w-0 flex-1">
+                <span className="block font-medium">Gegen Einbrennen</span>
+                <span className="mt-1 block text-sm text-pretty text-mist">
+                  Die Tafel rückt langsam ein paar Pixel, damit ein dauernd laufender Bildschirm nicht einbrennt.
+                </span>
+              </span>
+              <input
+                type="checkbox"
+                className="apple-switch"
+                checked={draft.burnGuard}
+                onChange={(event) => setDraft({ ...draft, burnGuard: event.target.checked })}
+              />
+            </label>
             <div className="mt-auto pt-8">
               <button type="button" className="apple-btn w-full" onClick={() => onDone(draft)}>
                 Zur Tafel
@@ -854,5 +914,6 @@ export function Setup({
         ) : null}
       </div>
     </main>
+    </div>
   );
 }

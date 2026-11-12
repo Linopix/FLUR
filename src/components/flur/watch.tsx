@@ -1,10 +1,13 @@
 import { Link } from "@tanstack/react-router";
+import { NameLine, useNameMode } from "@/components/flur/names";
 import { DEMO_LESSONS } from "@/lib/flur/demo";
+import { lessonSubject } from "@/lib/flur/names";
 import { berlinParts, formatClock, formatInstant, formatMinutes } from "@/lib/flur/time";
 import { useFlur } from "@/components/flur/use-flur";
 
 export function WatchFace() {
   const flur = useFlur();
+  const names = useNameMode(flur.settings.nameFit);
   const lessons = flur.today.lessons.length ? flur.today.lessons : DEMO_LESSONS;
   const minutes = flur.now ? berlinParts(flur.now).minutes : null;
   const focus =
@@ -29,7 +32,9 @@ export function WatchFace() {
           <p className="text-sm font-semibold text-accent">{active ? "Jetzt" : "Nächste Stunde"}</p>
           {focus ? (
             <>
-              <h1 className="font-display mt-1 text-3xl text-balance">{focus.subject}</h1>
+              <h1 className="mt-1">
+                <NameLine text={lessonSubject(focus, names)} label={focus.subject} mode={names} className="font-display text-3xl" />
+              </h1>
               <p className="mt-1 text-secondary">
                 {formatMinutes(focus.startMin)}–{formatMinutes(focus.endMin)} · {focus.room || "Raum offen"}
               </p>

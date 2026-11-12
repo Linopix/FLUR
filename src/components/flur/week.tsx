@@ -1,8 +1,11 @@
 import { ChevronLeft, ChevronRight, Download } from "lucide-react";
 import { useMemo, useState } from "react";
+import { isAuthFailure } from "@/lib/flur/cache";
+import { NameLine } from "@/components/flur/names";
 import type { DeskData, ExamItem } from "@/lib/flur/desk";
 import { mondayOf, weekdayShort } from "@/lib/flur/desk";
-import type { Lesson } from "@/lib/flur/types";
+import { lessonSubject, lessonTeacher } from "@/lib/flur/names";
+import type { Lesson, NameMode } from "@/lib/flur/types";
 import { addDaysIso, berlinParts, formatDay, formatDayShort, formatMinutes } from "@/lib/flur/time";
 
 export function DeskStatus({
@@ -15,9 +18,8 @@ export function DeskStatus({
   fromCache: boolean;
 }) {
   if (loading && !fromCache && !error) return <p className="text-sm text-mist">Wird aus WebUntis geladen …</p>;
-  if (error && fromCache) return <p className="text-sm text-pretty text-mist">Zuletzt gespeichert auf diesem Gerät. {error}</p>;
   if (error) return <p className="text-sm text-pretty text-rust">{error}</p>;
-  if (fromCache) return <p className="text-sm text-mist">Zuletzt gespeichert auf diesem Gerät.</p>;
+  if (fromCache) return <p className="text-sm text-pretty text-mist">Offline. Zuletzt auf diesem Gerät gespeichert.</p>;
   return null;
 }
 
@@ -35,11 +37,13 @@ function WeekCell({
   lesson,
   current,
   selected,
+  names,
   onOpen,
 }: {
   lesson: Lesson;
   current: boolean;
   selected: boolean;
+  names: NameMode;
   onOpen: () => void;
 }) {
   const word = statusWord(lesson);
@@ -52,9 +56,12 @@ function WeekCell({
       }
     >
       <p className={"text-xs tabular-nums " + (selected ? "text-chalk-ink/80" : "text-mist")}>{formatMinutes(lesson.startMin)}</p>
-      <p className={"truncate text-sm font-semibold " + (lesson.status === "cancelled" && !selected ? "text-mist line-through" : "")}>
-        {lesson.subject}
-      </p>
+      <NameLine
+        text={lessonSubject(lesson, names)}
+        label={lesson.subject}
+        mode={names}
+        className={"text-sm font-semibold " + (lesson.status === "cancelled" && !selected ? "line-through" : "")}
+      />
       {lesson.room ? <p className={"truncate text-xs " + (selected ? "text-chalk-ink/80" : "text-mist")}>{lesson.room}</p> : null}
       {word ? (
         <p className={"text-xs font-semibold " + (selected ? "" : lesson.status === "cancelled" ? "text-rust" : "text-chalk")}>{word}</p>
@@ -70,6 +77,7 @@ export function WeekView({
   error,
   fromCache,
   onExport,
+  names,
 }: {
   desk: DeskData | null;
   now: Date | null;
@@ -77,6 +85,7 @@ export function WeekView({
   error: string | null;
   fromCache: boolean;
   onExport: () => void;
+  names: NameMode;
 }) {
   const todayIso = now ? berlinParts(now).iso : "";
   const anchor = mondayOf(todayIso || desk?.days[0]?.iso || "2026-11-09");
@@ -159,7 +168,11 @@ export function WeekView({
         </div>
       </div>
       <div className="mt-4">
-        <DeskStatus loading={loading && !desk} error={desk ? null : error} fromCache={fromCache && !desk} />
+        <DeskStatus
+          loading={loading && !desk}
+          error={error && isAuthFailure(error) ? error : desk ? null : error}
+          fromCache={Boolean(fromCache && !(error && isAuthFailure(error)))}
+        />
       </div>
 
       <div className="mt-4 flex gap-2 overflow-x-auto md:hidden" role="tablist" aria-label="Wochentag">
@@ -197,17 +210,26 @@ export function WeekView({
                 <li key={lesson.id} className={"border-b border-line last:border-b-0 " + (current && !selected ? "bg-now" : "")}>
                   <button type="button" onClick={() => toggleSubject(lesson.id)} className={"w-full px-4 py-3 text-left " + (selected ? "bg-chalk text-chalk-ink" : "")}>
                     <div className="flex items-baseline justify-between gap-3">
-                      <p className={"font-medium " + (lesson.status === "cancelled" && !selected ? "text-mist line-through" : "")}>
-                        {lesson.subject}
-                      </p>
+                      <div className={"min-w-0 flex-1 font-medium " + (lesson.status === "cancelled" && !selected ? "text-mist line-through" : "")}>
+                        <NameLine text={lessonSubject(lesson, names)} label={lesson.subject} mode={names} />
+                      </div>
                       <p className={"shrink-0 text-sm tabular-nums " + (selected ? "text-chalk-ink/80" : "text-mist")}>
                         {formatMinutes(lesson.startMin)}–{formatMinutes(lesson.endMin)}
                       </p>
                     </div>
-                    <p className={"mt-1 text-sm " + (selected ? "text-chalk-ink/80" : "text-mist")}>
-                      {[lesson.room, lesson.teacher].filter(Boolean).join(" · ") || "Raum offen"}
-                      {word ? ` · ${word}` : ""}
-                    </p>
+                    <div className={"mt-1 text-sm " + (selected ? "text-chalk-ink/80" : "text-mist")}>
+                      <NameLine
+                        text={
+                          [lesson.room, lesson.teacher ? lessonTeacher(lesson, names) : "", word].filter(Boolean).join(" · ") ||
+                          "Raum offen"
+                        }
+                        label={
+                          [lesson.room, lesson.teacher ? lessonTeacher(lesson, "long") : "", word].filter(Boolean).join(" · ") ||
+                          "Raum offen"
+                        }
+                        mode={names}
+                      />
+                    </div>
                   </button>
                 </li>
               );
@@ -233,6 +255,7 @@ export function WeekView({
                     <WeekCell
                       key={lesson.id}
                       lesson={lesson}
+                      names={names}
                       selected={openId === lesson.id}
                       onOpen={() => toggleSubject(lesson.id)}
                       current={
@@ -253,7 +276,9 @@ export function WeekView({
         <section className="mt-4 rounded-board border border-line bg-panel p-4 md:p-5">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <h3 className="font-display text-3xl">{openLesson.lesson.subject}</h3>
+              <h3 className="min-w-0 font-display text-3xl">
+                <NameLine text={lessonSubject(openLesson.lesson, names)} label={openLesson.lesson.subject} mode={names} />
+              </h3>
               <p className="mt-1 text-sm text-mist">
                 {same.lessons.length} {same.lessons.length === 1 ? "Termin" : "Termine"} im geladenen Plan
                 {same.exams.length ? `, dazu ${same.exams.length === 1 ? "eine Prüfung" : `${same.exams.length} Prüfungen`}` : ""}
@@ -274,8 +299,8 @@ export function WeekView({
                       {formatDay(row.iso)}
                       {here ? <span className="ml-2 text-sm font-semibold text-chalk">dieser Termin</span> : null}
                     </p>
-                    <p className="mt-0.5 truncate text-sm text-mist">
-                      {[row.lesson.room, row.lesson.teacher || row.lesson.originalTeacher].filter(Boolean).join(" · ") || "Raum offen"}
+                    <p className="mt-0.5 text-sm text-mist">
+                      {[row.lesson.room, lessonTeacher(row.lesson, names)].filter(Boolean).join(" · ") || "Raum offen"}
                       {word ? ` · ${word}` : ""}
                     </p>
                   </div>

@@ -1,7 +1,10 @@
 import { Check } from "lucide-react";
 import { useEffect, useState } from "react";
 import { DeskStatus } from "@/components/flur/week";
+import { isAuthFailure } from "@/lib/flur/cache";
 import type { DeskData } from "@/lib/flur/desk";
+import { shownName } from "@/lib/flur/names";
+import type { NameMode } from "@/lib/flur/types";
 import { formatDayShort, formatMinutes } from "@/lib/flur/time";
 
 type Tab = "changes" | "exams" | "homework" | "absences" | "holidays" | "notices";
@@ -38,11 +41,13 @@ export function SchoolView({
   loading,
   error,
   fromCache,
+  names,
 }: {
   desk: DeskData | null;
   loading: boolean;
   error: string | null;
   fromCache: boolean;
+  names: NameMode;
 }) {
   const [tab, setTab] = useState<Tab>("changes");
   const [done, setDone] = useState<string[]>([]);
@@ -78,7 +83,11 @@ export function SchoolView({
       <h2 className="font-display text-4xl">Schule</h2>
       <p className="mt-1 text-sm text-pretty text-mist">Was Untis zum eigenen Stundenplan hergibt. Zwei Wochen voraus.</p>
       <div className="mt-4">
-        <DeskStatus loading={loading && !desk} error={desk ? null : error} fromCache={fromCache && !desk} />
+        <DeskStatus
+          loading={loading && !desk}
+          error={error && isAuthFailure(error) ? error : desk ? null : error}
+          fromCache={Boolean(fromCache && !(error && isAuthFailure(error)))}
+        />
       </div>
       <div className="mt-4 flex gap-2 overflow-x-auto" role="tablist" aria-label="Schulbereich">
         {TABS.map((item) => {
@@ -107,8 +116,8 @@ export function SchoolView({
             empty="Keine Vertretung. Nichts entfällt."
             rows={(desk?.changes ?? []).map((item) => ({
               id: item.id,
-              title: `${item.kind === "cancelled" ? "Entfällt" : "Vertretung"} · ${item.subject}`,
-              meta: [formatDayShort(item.iso), span(item.startMin, item.endMin), item.room, item.teacher, item.text]
+              title: `${item.kind === "cancelled" ? "Entfällt" : "Vertretung"} · ${shownName(item.subject, item.subjectShort, "subject", names)}`,
+              meta: [formatDayShort(item.iso), span(item.startMin, item.endMin), item.room, shownName(item.teacher, item.teacherShort, "teacher", names), item.text]
                 .filter(Boolean)
                 .join(" · "),
               tone: item.kind === "cancelled" ? "bad" : "accent",
@@ -120,8 +129,8 @@ export function SchoolView({
             empty="Keine Prüfung eingetragen."
             rows={(desk?.exams ?? []).map((item) => ({
               id: item.id,
-              title: item.subject ? `${item.name} · ${item.subject}` : item.name,
-              meta: [formatDayShort(item.iso), span(item.startMin, item.endMin), item.rooms, item.teachers, item.text]
+              title: item.subject ? `${item.name} · ${shownName(item.subject, undefined, "subject", names)}` : item.name,
+              meta: [formatDayShort(item.iso), span(item.startMin, item.endMin), item.rooms, shownName(item.teachers, undefined, "teacher", names), item.text]
                 .filter(Boolean)
                 .join(" · "),
               tone: "accent",
@@ -154,7 +163,7 @@ export function SchoolView({
                     <div className="min-w-0 py-1">
                       <p className={"font-medium " + (checked ? "text-mist line-through" : "text-paper")}>{item.text}</p>
                       <p className="mt-1 text-sm text-mist">
-                        {[item.subject, item.teacher, item.dueIso ? `bis ${formatDayShort(item.dueIso)}` : "", item.done ? "in Untis erledigt" : ""]
+                        {[shownName(item.subject, undefined, "subject", names), shownName(item.teacher, undefined, "teacher", names), item.dueIso ? `bis ${formatDayShort(item.dueIso)}` : "", item.done ? "in Untis erledigt" : ""]
                           .filter(Boolean)
                           .join(" · ")}
                       </p>
@@ -170,7 +179,7 @@ export function SchoolView({
             empty="Keine Fehlzeit."
             rows={(desk?.absences ?? []).map((item) => ({
               id: item.id,
-              title: item.subject || "Fehlzeit",
+              title: item.subject ? shownName(item.subject, undefined, "subject", names) : "Fehlzeit",
               meta: [formatDayShort(item.iso), span(item.startMin, item.endMin), item.status, item.text].filter(Boolean).join(" · "),
               tone: item.status === "unentschuldigt" ? "bad" : "plain",
             }))}

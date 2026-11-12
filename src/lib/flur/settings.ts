@@ -1,4 +1,4 @@
-import type { LoginKind, Mode, Settings, Who } from "@/lib/flur/types";
+import type { AnalogDesign, ClockFace, ClockSize, ClockUnit, DigitalDesign, LoginKind, Mode, NameFit, Settings, ThemeId, Who } from "@/lib/flur/types";
 
 const KEY = "flur.settings.v1";
 
@@ -19,6 +19,22 @@ export function emptySettings(): Settings {
     mode: "bike",
     kioskRotate: false,
     countdown: true,
+    nameFit: "auto",
+    clockFace: "digital",
+    clockDigital: "serif",
+    clockAnalog: "chalk",
+    clockUnit: "auto",
+    clockSize: "auto",
+    countdownOwn: false,
+    countFace: "digital",
+    countDigital: "serif",
+    countAnalog: "chalk",
+    countUnit: "auto",
+    countSize: "auto",
+    burnGuard: false,
+    infoScreen: false,
+    dense: false,
+    theme: "chalk",
     onboarded: false,
   };
 }
@@ -29,6 +45,69 @@ function asWho(value: unknown): Who {
 
 function asLogin(value: unknown): LoginKind {
   return value === "secret" ? "secret" : "password";
+}
+
+function asNameFit(value: unknown): NameFit {
+  return value === "short" || value === "long" || value === "scroll" || value === "auto" ? value : "auto";
+}
+
+function asClockFace(value: unknown): ClockFace {
+  return value === "analog" ? "analog" : "digital";
+}
+
+function asDigital(value: unknown): DigitalDesign {
+  return value === "split" || value === "led" || value === "serif" ? value : "serif";
+}
+
+function asAnalog(value: unknown): AnalogDesign {
+  return value === "ring" || value === "school" || value === "chalk" ? value : "chalk";
+}
+
+function asClockUnit(value: unknown): ClockUnit {
+  return value === "minute" || value === "hour" || value === "second" || value === "auto" ? value : "auto";
+}
+
+function asClockSize(value: unknown): ClockSize {
+  return value === "s" || value === "l" || value === "m" || value === "auto" ? value : "auto";
+}
+
+export type FaceStyle = {
+  face: ClockFace;
+  digital: DigitalDesign;
+  analog: AnalogDesign;
+  unit: ClockUnit;
+  size: ClockSize;
+};
+
+export function wallClock(settings: Settings): FaceStyle {
+  return {
+    face: settings.clockFace,
+    digital: settings.clockDigital,
+    analog: settings.clockAnalog,
+    unit: settings.clockUnit,
+    size: settings.clockSize,
+  };
+}
+
+export function countdownClock(settings: Settings): FaceStyle {
+  if (!settings.countdownOwn) return wallClock(settings);
+  return {
+    face: settings.countFace,
+    digital: settings.countDigital,
+    analog: settings.countAnalog,
+    unit: settings.countUnit,
+    size: settings.countSize,
+  };
+}
+
+function asTheme(value: unknown): ThemeId {
+  return value === "glass" ? "glass" : "chalk";
+}
+
+export function applyTheme(theme: ThemeId) {
+  if (typeof document === "undefined") return;
+  if (theme === "glass") document.documentElement.dataset.theme = "glass";
+  else delete document.documentElement.dataset.theme;
 }
 
 function asMode(value: unknown): Mode {
@@ -58,6 +137,22 @@ export function loadSettings(): Settings {
       schoolAddress: typeof parsed.schoolAddress === "string" ? parsed.schoolAddress : "",
       kioskRotate: Boolean(parsed.kioskRotate),
       countdown: parsed.countdown !== false,
+      nameFit: asNameFit(parsed.nameFit),
+      clockFace: asClockFace(parsed.clockFace),
+      clockDigital: asDigital(parsed.clockDigital),
+      clockAnalog: asAnalog(parsed.clockAnalog),
+      clockUnit: asClockUnit(parsed.clockUnit),
+      clockSize: asClockSize(parsed.clockSize),
+      countdownOwn: parsed.countdownOwn === true,
+      countFace: asClockFace(parsed.countFace),
+      countDigital: asDigital(parsed.countDigital),
+      countAnalog: asAnalog(parsed.countAnalog),
+      countUnit: asClockUnit(parsed.countUnit),
+      countSize: asClockSize(parsed.countSize),
+      burnGuard: parsed.burnGuard === true,
+      infoScreen: parsed.infoScreen === true,
+      dense: parsed.dense === true,
+      theme: asTheme(parsed.theme),
       password: typeof parsed.password === "string" ? parsed.password : "",
       onboarded: parsed.onboarded === true,
     };
