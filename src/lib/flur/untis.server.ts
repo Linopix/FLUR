@@ -16,7 +16,7 @@ import {
 } from "@/lib/flur/desk";
 import { readNamedDirectory, readPublicDirectory, type DirectoryItem } from "@/lib/flur/directory";
 import { addDaysIso, berlinParts, untisTimeToMinutes, ymdToIso } from "@/lib/flur/time";
-import type { BoardResult, DayBoard, Lesson, LessonStatus, LoginKind, SchoolMatch, Who } from "@/lib/flur/types";
+import type { BoardResult, DayBoard, Lesson, LessonStatus, LoginKind, Mode, SchoolMatch, Who } from "@/lib/flur/types";
 
 export type UntisCreds = {
   baseUrl: string;
@@ -819,17 +819,24 @@ export function routeFromEnv(): {
   home: string;
   station: string;
   schoolStop: string;
-  mode: "" | "bus" | "car" | "bike" | "walk";
+  schoolAddress: string;
+  mode: "" | Mode;
 } {
   const modeRaw = process.env.FLUR_MODE?.trim();
-  const mode =
-    modeRaw === "bus" || modeRaw === "car" || modeRaw === "bike" || modeRaw === "walk"
+  const mode: "" | Mode =
+    modeRaw === "bus" ||
+    modeRaw === "car" ||
+    modeRaw === "bike" ||
+    modeRaw === "walk" ||
+    modeRaw === "drive" ||
+    modeRaw === "link"
       ? modeRaw
       : "";
   return {
     home: process.env.FLUR_HOME?.trim() ?? "",
     station: process.env.FLUR_STATION?.trim() ?? "",
     schoolStop: process.env.FLUR_SCHOOL_STOP?.trim() ?? "",
+    schoolAddress: process.env.FLUR_SCHOOL_ADDRESS?.trim() ?? "",
     mode,
   };
 }

@@ -2,6 +2,7 @@ import {
   SCHOOL_BUFFER_MIN,
   legIsCancelled,
   pickEarliest,
+  pickJourney,
   pickTightest,
   transitLegs,
   type TimedItinerary,
@@ -207,7 +208,7 @@ function pathLegs(itinerary: RawItinerary, fromLabel: string, toLabel: string): 
 
 function accessMode(mode: Mode): TripLeg["mode"] {
   if (mode === "bus") return "bus";
-  if (mode === "car") return "car";
+  if (mode === "car" || mode === "drive") return "car";
   if (mode === "bike") return "bike";
   return "walk";
 }
@@ -235,13 +236,19 @@ function accessLeg(
 }
 
 function transferPad(mode: Mode): number {
-  if (mode === "car") return 4;
+  if (mode === "car" || mode === "drive") return 4;
   if (mode === "bike") return 2;
   if (mode === "bus") return 3;
   return 1;
 }
 
-async function streetAccess(mode: Exclude<Mode, "bus">, from: Point, to: Point) {
+type StreetMode = "walk" | "bike" | "car";
+
+function isStreet(mode: Mode): mode is StreetMode {
+  return mode === "walk" || mode === "bike" || mode === "car";
+}
+
+async function streetAccess(mode: StreetMode, from: Point, to: Point) {
   const profile = mode === "car" ? "driving" : mode === "bike" ? "bike" : "foot";
   const route = await routeAccess(profile, from, to);
   const label = mode === "car" ? "Auto" : mode === "bike" ? "Fahrrad" : "Zu Fuß";
@@ -255,41 +262,44 @@ async function approachLegs(
   beAtStation: Date,
   now: number,
 ): Promise<TripLeg[]> {
-  if (mode !== "bus") {
-    const street = await streetAccess(mode, home, station);
-    const leave = new Date(beAtStation.getTime() - (street.minutes + street.pad) * 60_000);
-    return [accessLeg(mode, home.name, station.name, leave.toISOString(), street.minutes + street.pad, street.title)];
+  if (mode === "bus") {
+    const rows = await transitPlan(home, station, beAtStation, BUS, { arriveBy: true, searchWindow: 90 * 60 });
+    const chosen = pickTightest(rows, beAtStation.getTime(), now);
+    if (!chosen?.startTime || !chosen.endTime) {
+      throw new Error("Kein Bus, der rechtzeitig am Bahnhof ist. Fahrrad, Auto oder zu Fuß versuchen.");
+    }
+    return pathLegs(chosen, home.name, station.name);
   }
-  const rows = await transitPlan(home, station, beAtStation, BUS, { arriveBy: true, searchWindow: 90 * 60 });
-  const chosen = pickTightest(rows, beAtStation.getTime(), now);
-  if (!chosen?.startTime || !chosen.endTime) {
-    throw new Error("Kein Bus, der rechtzeitig am Bahnhof ist. Fahrrad, Auto oder zu Fuß versuchen.");
-  }
-  return pathLegs(chosen, home.name, station.name);
+  if (!isStreet(mode)) throw new Error("Für diesen Weg gibt es keinen einzelnen Zugang zum Bahnhof.");
+  const street = await streetAccess(mode, home, station);
+  const leave = new Date(beAtStation.getTime() - (street.minutes + street.pad) * 60_000);
+  return [accessLeg(mode, home.name, station.name, leave.toISOString(), street.minutes + street.pad, street.title)];
 }
 
 async function leaveStationLegs(mode: Mode, station: Point, home: Point, atStation: Date): Promise<TripLeg[]> {
-  if (mode !== "bus") {
-    const street = await streetAccess(mode, station, home);
-    return [accessLeg(mode, station.name, home.name, atStation.toISOString(), street.minutes, street.title)];
+  if (mode === "bus") {
+    const rows = await transitPlan(station, home, atStation, BUS, { arriveBy: false, searchWindow: 60 * 60 });
+    const chosen = pickEarliest(rows, atStation.getTime());
+    if (!chosen?.startTime || !chosen.endTime) {
+      throw new Error("Kein Bus vom Bahnhof nach Hause. Fahrrad, Auto oder zu Fuß versuchen.");
+    }
+    return pathLegs(chosen, station.name, home.name);
   }
-  const rows = await transitPlan(station, home, atStation, BUS, { arriveBy: false, searchWindow: 60 * 60 });
-  const chosen = pickEarliest(rows, atStation.getTime());
-  if (!chosen?.startTime || !chosen.endTime) {
-    throw new Error("Kein Bus vom Bahnhof nach Hause. Fahrrad, Auto oder zu Fuß versuchen.");
-  }
-  return pathLegs(chosen, station.name, home.name);
+  if (!isStreet(mode)) throw new Error("Für diesen Weg gibt es keinen einzelnen Weg vom Bahnhof.");
+  const street = await streetAccess(mode, station, home);
+  return [accessLeg(mode, station.name, home.name, atStation.toISOString(), street.minutes, street.title)];
 }
 
 async function leadMinutes(mode: Mode, home: Point, station: Point, now: number): Promise<number> {
-  if (mode !== "bus") {
-    const street = await streetAccess(mode, home, station);
-    return street.minutes + street.pad;
+  if (mode === "bus") {
+    const rows = await transitPlan(home, station, new Date(now), BUS, { arriveBy: false, searchWindow: 60 * 60 });
+    const chosen = pickEarliest(rows, now);
+    if (!chosen?.startTime || !chosen.endTime) return 20;
+    return Math.max(8, Math.round((Date.parse(chosen.endTime) - Date.parse(chosen.startTime)) / 60_000) + transferPad(mode));
   }
-  const rows = await transitPlan(home, station, new Date(now), BUS, { arriveBy: false, searchWindow: 60 * 60 });
-  const chosen = pickEarliest(rows, now);
-  if (!chosen?.startTime || !chosen.endTime) return 20;
-  return Math.max(8, Math.round((Date.parse(chosen.endTime) - Date.parse(chosen.startTime)) / 60_000) + transferPad(mode));
+  if (!isStreet(mode)) return 12;
+  const street = await streetAccess(mode, home, station);
+  return street.minutes + street.pad;
 }
 
 function summarize(direction: "hin" | "heim", mode: Mode, punctual: boolean, rail: TripLeg | undefined): string {
@@ -304,10 +314,311 @@ function firstRail(legs: TripLeg[]): TripLeg | undefined {
   return legs.find((leg) => leg.mode === "rail");
 }
 
+type BuiltTrip = {
+  leaveMs: number;
+  arriveMs: number;
+  misses: boolean;
+  legs: TripLeg[];
+  punctual: boolean;
+  rail?: TripLeg;
+  label: string;
+};
+
+function wayName(mode: "walk" | "bike" | "bus"): string {
+  if (mode === "bike") return "Rad";
+  if (mode === "bus") return "Bus";
+  return "Fuß";
+}
+
+function usableTrains(rows: RawItinerary[], deadlineMs: number | null, earliestStartMs: number): RawItinerary[] {
+  const onTime = rows.filter((row) => {
+    const start = Date.parse(row.startTime ?? "");
+    const end = Date.parse(row.endTime ?? "");
+    if (!Number.isFinite(start) || !Number.isFinite(end)) return false;
+    if (start < earliestStartMs - 30_000) return false;
+    if (deadlineMs != null && end > deadlineMs + 60_000) return false;
+    const legs = transitLegs(row);
+    return legs.length > 0 && !legs.some(legIsCancelled);
+  });
+  onTime.sort((a, b) => Date.parse(b.startTime ?? "") - Date.parse(a.startTime ?? ""));
+  if (onTime.length > 0) return onTime.slice(0, 2);
+  const early = pickEarliest(rows, earliestStartMs);
+  return early?.startTime && early.endTime ? [early] : [];
+}
+
+async function maybeApproach(
+  mode: "walk" | "bike" | "bus",
+  home: Point,
+  station: Point,
+  beAt: Date,
+  now: number,
+): Promise<TripLeg[] | null> {
+  try {
+    return await approachLegs(mode, home, station, beAt, now);
+  } catch {
+    return null;
+  }
+}
+
+async function maybeFromStop(
+  mode: "walk" | "bike" | "bus",
+  station: Point,
+  home: Point,
+  atStation: Date,
+): Promise<TripLeg[] | null> {
+  try {
+    return await leaveStationLegs(mode, station, home, atStation);
+  } catch {
+    return null;
+  }
+}
+
+async function maybeStreet(
+  mode: "walk" | "bike",
+  from: Point,
+  to: Point,
+  at: Date,
+): Promise<TripLeg[] | null> {
+  try {
+    const street = await streetAccess(mode, from, to);
+    return [accessLeg(mode, from.name, to.name, at.toISOString(), street.minutes, street.title)];
+  } catch {
+    return null;
+  }
+}
+
+async function maybeBus(from: Point, to: Point, at: Date): Promise<TripLeg[] | null> {
+  try {
+    const rows = await transitPlan(from, to, at, BUS, { arriveBy: false, searchWindow: 50 * 60 });
+    const chosen = pickEarliest(rows, at.getTime());
+    if (!chosen?.startTime || !chosen.endTime) return null;
+    const legs = pathLegs(chosen, from.name, to.name);
+    return legs.length > 0 ? legs : null;
+  } catch {
+    return null;
+  }
+}
+
+function finishLinked(
+  built: BuiltTrip[],
+  deadlineMs: number | null,
+  direction: "hin" | "heim",
+  places: TripPlan["places"],
+  example: boolean,
+  focus: string,
+): TripResult {
+  const winner = pickJourney(built, deadlineMs);
+  if (!winner) return { ok: false, error: "Keine Kombination aus Bus, Rad, Fuß und Zug." };
+  const other = built
+    .filter((row) => row.label !== winner.label)
+    .sort((a, b) => a.arriveMs - a.leaveMs - (b.arriveMs - b.leaveMs))[0];
+  const gap = other
+    ? Math.round((other.arriveMs - other.leaveMs - (winner.arriveMs - winner.leaveMs)) / 60_000)
+    : 0;
+  const rail = winner.rail;
+  const state = winner.punctual ? "pünktlich" : rail?.cancelled ? "fällt aus" : `+${rail?.delayMin ?? 0} Min`;
+  const faster = other && gap >= 3 ? ` ${gap} Minuten schneller als ${other.label}.` : "";
+  const lesson = focus ? ` (${focus})` : "";
+  const base =
+    direction === "hin"
+      ? `Automatisch die kürzeste Verbindung zur Schule${lesson}.`
+      : `Automatisch die kürzeste Verbindung nach Hause${lesson}.`;
+  const trip: TripPlan = {
+    source: "live",
+    direction,
+    mode: "link",
+    punctual: winner.punctual,
+    leaveAt: new Date(winner.leaveMs).toISOString(),
+    arriveAt: new Date(winner.arriveMs).toISOString(),
+    headline: `${winner.label}, ${rail?.title ?? "Zug"} ${state}.`,
+    note: `${example ? "Beispielstrecke, live gerechnet. " : ""}${base}${faster}`,
+    places,
+    legs: winner.legs,
+  };
+  return { ok: true, trip };
+}
+
+async function planDrive(input: {
+  direction: "hin" | "heim";
+  home: Point;
+  dest: Point;
+  departAt: string;
+  arriveBy: string;
+  classEnd: string;
+  focus: string;
+  example: boolean;
+}): Promise<TripResult> {
+  const from = input.direction === "hin" ? input.home : input.dest;
+  const to = input.direction === "hin" ? input.dest : input.home;
+  const route = await routeAccess("driving", from, to);
+  const now = Date.now();
+  let leaveMs = now;
+  let late = false;
+  if (input.direction === "hin") {
+    const deadline = Date.parse(input.arriveBy);
+    if (Number.isFinite(deadline)) {
+      leaveMs = deadline - route.minutes * 60_000;
+      if (leaveMs < now) {
+        leaveMs = now;
+        late = true;
+      }
+    }
+  } else {
+    const classEnd = Date.parse(input.classEnd);
+    const depart = Date.parse(input.departAt);
+    leaveMs = Number.isFinite(classEnd) ? classEnd : Number.isFinite(depart) ? depart : now;
+    if (leaveMs < now) leaveMs = now;
+  }
+  const leg = accessLeg("car", from.name, to.name, new Date(leaveMs).toISOString(), route.minutes, `Auto · ${route.km} km`);
+  const lesson = input.focus || "der Stunde";
+  const note = late
+    ? `Zur ${lesson} reicht die Fahrt nicht mehr. Abfahrt jetzt, etwa ${route.minutes} Minuten.`
+    : `Ganzer Weg mit dem Auto, etwa ${route.minutes} Minuten und ${route.km} km. Das ist die Fahrzeit aus dem Straßennetz, nicht der Live-Stau.`;
+  return {
+    ok: true,
+    trip: {
+      source: "live",
+      direction: input.direction,
+      mode: "drive",
+      punctual: !late,
+      leaveAt: leg.departure,
+      arriveAt: leg.arrival,
+      headline: `Auto direkt · ${route.km} km`,
+      note: `${input.example ? "Beispielstrecke, live gerechnet. " : ""}${note}`,
+      places: { home: input.home.name, station: "", schoolStop: input.dest.name },
+      legs: [leg],
+    },
+  };
+}
+
+async function planLink(input: {
+  direction: "hin" | "heim";
+  home: Point;
+  station: Point;
+  schoolStop: Point;
+  door: Point | null;
+  departAt: string;
+  arriveBy: string;
+  classEnd: string;
+  focus: string;
+  example: boolean;
+}): Promise<TripResult> {
+  const now = Date.now();
+  const places = { home: input.home.name, station: input.station.name, schoolStop: input.schoolStop.name };
+  const modes = ["walk", "bike", "bus"] as const;
+
+  if (input.direction === "hin") {
+    const [walk, bike] = await Promise.all([
+      streetAccess("walk", input.home, input.station),
+      streetAccess("bike", input.home, input.station),
+    ]);
+    const minLead = Math.min(walk.minutes + walk.pad, bike.minutes + bike.pad);
+    const deadlineMs = Date.parse(input.arriveBy);
+    const tight = Number.isFinite(deadlineMs) && deadlineMs > now + 4 * 60_000;
+    const rows = await transitPlan(input.station, input.schoolStop, tight ? new Date(deadlineMs) : new Date(now + minLead * 60_000), RAIL, {
+      arriveBy: tight,
+      searchWindow: tight ? 4 * 60 * 60 : 2 * 60 * 60,
+    });
+    const trains = usableTrains(rows, tight ? deadlineMs : null, now + minLead * 60_000);
+    if (trains.length === 0) return { ok: false, error: "Keine Zugverbindung in den nächsten Stunden." };
+    const built: BuiltTrip[] = [];
+    for (const train of trains) {
+      const start = Date.parse(train.startTime ?? "");
+      const end = Date.parse(train.endTime ?? "");
+      const ride = pathLegs(train, input.station.name, input.schoolStop.name);
+      const punctual = itineraryPunctual(train);
+      const approaches = await Promise.all(
+        modes.map(async (mode) => ({ mode, legs: await maybeApproach(mode, input.home, input.station, new Date(start), now) })),
+      );
+      const egresses: Array<{ mode: "walk" | "bike" | "bus"; legs: TripLeg[] | null }> = input.door
+        ? [
+            { mode: "walk", legs: await maybeStreet("walk", input.schoolStop, input.door, new Date(end)) },
+            { mode: "bus", legs: await maybeBus(input.schoolStop, input.door, new Date(end)) },
+          ]
+        : [
+            {
+              mode: "walk",
+              legs: [
+                accessLeg("walk", input.schoolStop.name, "Schule", train.endTime ?? "", SCHOOL_BUFFER_MIN, "Weg ins Schulhaus"),
+              ],
+            },
+          ];
+      for (const approach of approaches) {
+        if (!approach.legs?.length) continue;
+        for (const egress of egresses) {
+          if (!egress.legs?.length) continue;
+          const leaveMs = Date.parse(approach.legs[0]?.departure ?? "");
+          const arriveMs = Date.parse(egress.legs.at(-1)?.arrival ?? "");
+          if (!Number.isFinite(leaveMs) || !Number.isFinite(arriveMs) || leaveMs < now - 60_000) continue;
+          built.push({
+            leaveMs,
+            arriveMs,
+            misses: tight && arriveMs > deadlineMs + 60_000,
+            legs: [...approach.legs, ...ride, ...egress.legs],
+            punctual,
+            rail: firstRail(ride),
+            label: `${wayName(approach.mode)} und ${wayName(egress.mode)}`,
+          });
+        }
+      }
+    }
+    return finishLinked(built, tight ? deadlineMs : null, "hin", places, input.example, input.focus);
+  }
+
+  const classEndMs = Date.parse(input.classEnd);
+  const departMs = Date.parse(input.departAt);
+  const atSchool = Number.isFinite(classEndMs) ? classEndMs : Number.isFinite(departMs) ? departMs : now;
+  const stopOptions: Array<{ mode: "walk" | "bike" | "bus"; atStop: number; legs: TripLeg[] }> = [];
+  if (input.door) {
+    const walk = await maybeStreet("walk", input.door, input.schoolStop, new Date(atSchool));
+    if (walk?.[0]) {
+      stopOptions.push({ mode: "walk", atStop: Date.parse(walk[0].arrival), legs: walk });
+    }
+    const bus = await maybeBus(input.door, input.schoolStop, new Date(atSchool));
+    if (bus?.[0]) stopOptions.push({ mode: "bus", atStop: Date.parse(bus.at(-1)?.arrival ?? ""), legs: bus });
+  }
+  if (stopOptions.length === 0) {
+    const atStop = Number.isFinite(departMs) ? departMs : atSchool;
+    stopOptions.push({ mode: "walk", atStop, legs: [] });
+  }
+  const built: BuiltTrip[] = [];
+  for (const toStop of stopOptions.slice(0, 2)) {
+    if (!Number.isFinite(toStop.atStop)) continue;
+    const rows = await transitPlan(input.schoolStop, input.station, new Date(toStop.atStop), RAIL, {
+      arriveBy: false,
+      searchWindow: 2 * 60 * 60,
+    });
+    const train = usableTrains(rows, null, toStop.atStop)[0];
+    if (!train?.startTime || !train.endTime) continue;
+    const ride = pathLegs(train, input.schoolStop.name, input.station.name);
+    const punctual = itineraryPunctual(train);
+    const homes = await Promise.all(
+      modes.map(async (mode) => ({ mode, legs: await maybeFromStop(mode, input.station, input.home, new Date(train.endTime ?? "")) })),
+    );
+    for (const home of homes) {
+      if (!home.legs?.length) continue;
+      const leaveMs = toStop.legs[0] ? Date.parse(toStop.legs[0].departure) : Date.parse(train.startTime);
+      const arriveMs = Date.parse(home.legs.at(-1)?.arrival ?? "");
+      if (!Number.isFinite(leaveMs) || !Number.isFinite(arriveMs)) continue;
+      built.push({
+        leaveMs,
+        arriveMs,
+        misses: false,
+        legs: [...toStop.legs, ...ride, ...home.legs],
+        punctual,
+        rail: firstRail(ride),
+        label: `${wayName(toStop.mode)} und ${wayName(home.mode)}`,
+      });
+    }
+  }
+  return finishLinked(built, null, "heim", places, input.example, input.focus);
+}
+
 export async function planTrip(input: {
   homeAddress: string;
   station: string;
   schoolStop: string;
+  schoolAddress?: string;
   mode: Mode;
   direction: "hin" | "heim";
   departAt: string;
@@ -319,17 +630,23 @@ export async function planTrip(input: {
   const arriveBy = input.arriveBy?.trim() ?? "";
   const classEnd = input.classEnd?.trim() ?? "";
   const focus = input.focus?.trim() ?? "";
-  const ownPlace = Boolean(input.homeAddress.trim() || input.station.trim() || input.schoolStop.trim());
+  const schoolAddress = input.schoolAddress?.trim() ?? "";
+  const ownPlace = Boolean(input.homeAddress.trim() || input.station.trim() || input.schoolStop.trim() || schoolAddress);
   const homeAddress = input.homeAddress.trim() || (!ownPlace && input.example ? EXAMPLE_PLACES.homeAddress : "");
   const stationQuery = input.station.trim() || (!ownPlace && input.example ? EXAMPLE_PLACES.station : "");
   const schoolQuery = input.schoolStop.trim() || (!ownPlace && input.example ? EXAMPLE_PLACES.schoolStop : "");
-  if (!homeAddress || !stationQuery || !schoolQuery) {
+  if (!homeAddress) return { ok: false, error: "Heimatadresse fehlt." };
+  if (input.mode === "drive" && !schoolAddress && !schoolQuery) {
+    return { ok: false, error: "Fürs Auto fehlt die Schuladresse oder der Schulhalt." };
+  }
+  if (input.mode !== "drive" && (!stationQuery || !schoolQuery)) {
     return { ok: false, error: "Heimatadresse, Bahnhof und Schulhalt werden gebraucht." };
   }
   const cacheKey = [
     homeAddress,
     stationQuery,
     schoolQuery,
+    schoolAddress,
     input.mode,
     input.direction,
     input.departAt.slice(0, 16),
@@ -340,11 +657,46 @@ export async function planTrip(input: {
   if (cached && Date.now() - cached.at < 45_000) return { ok: true, trip: cached.trip };
 
   try {
-    const [home, station, school] = await Promise.all([
+    if (input.mode === "drive") {
+      const [home, dest] = await Promise.all([
+        geocodeAddress(homeAddress),
+        schoolAddress ? geocodeAddress(schoolAddress) : geocodeStop(schoolQuery),
+      ]);
+      const result = await planDrive({
+        direction: input.direction,
+        home,
+        dest,
+        departAt: input.departAt,
+        arriveBy,
+        classEnd,
+        focus,
+        example: !ownPlace,
+      });
+      if (result.ok) planCache.set(cacheKey, { at: Date.now(), trip: result.trip });
+      return result;
+    }
+    const [home, station, school, door] = await Promise.all([
       geocodeAddress(homeAddress),
       geocodeStop(stationQuery),
       geocodeStop(schoolQuery),
+      schoolAddress ? geocodeAddress(schoolAddress) : Promise.resolve(null),
     ]);
+    if (input.mode === "link") {
+      const result = await planLink({
+        direction: input.direction,
+        home,
+        station,
+        schoolStop: school,
+        door,
+        departAt: input.departAt,
+        arriveBy,
+        classEnd,
+        focus,
+        example: !ownPlace,
+      });
+      if (result.ok) planCache.set(cacheKey, { at: Date.now(), trip: result.trip });
+      return result;
+    }
     const now = Date.now();
 
     if (input.direction === "hin") {

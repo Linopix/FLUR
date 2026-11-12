@@ -134,7 +134,27 @@ export function pickTightest<T extends TimedItinerary>(
   return usable[0] ?? null;
 }
 
-/** Früheste Verbindung ab einem Zeitpunkt. Verspätung ist in Ordnung, Ausfall nicht. */
+export type JourneyChoice = {
+  leaveMs: number;
+  arriveMs: number;
+  misses: boolean;
+};
+
+/** Kürzeste Tür-zu-Tür-Zeit. Wer die Stunde schafft, gewinnt gegen eine schnellere, die zu spät kommt. */
+export function pickJourney<T extends JourneyChoice>(rows: T[], deadlineMs: number | null): T | null {
+  if (rows.length === 0) return null;
+  const onTime =
+    deadlineMs != null && Number.isFinite(deadlineMs)
+      ? rows.filter((row) => !row.misses && row.arriveMs <= deadlineMs + 60_000)
+      : rows.filter((row) => !row.misses);
+  const pool = onTime.length > 0 ? onTime : rows;
+  return pool.reduce((best, row) => {
+    const span = row.arriveMs - row.leaveMs;
+    const bestSpan = best.arriveMs - best.leaveMs;
+    if (span !== bestSpan) return span < bestSpan ? row : best;
+    return row.leaveMs > best.leaveMs ? row : best;
+  });
+}
 export function pickEarliest<T extends TimedItinerary>(rows: T[], earliestStartMs: number): T | null {
   const usable = rows.filter((row) => {
     const start = stamp(row.startTime);

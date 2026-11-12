@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, shell } = require("electron");
+const { app, BrowserWindow, Menu, Tray, ipcMain, nativeImage, shell } = require("electron");
 const { spawn } = require("node:child_process");
 const http = require("node:http");
 const net = require("node:net");
@@ -9,6 +9,91 @@ const SERVER_ENTRY = path.join(SERVER_ROOT, "server", "index.mjs");
 
 let serverProcess = null;
 let mainWindow = null;
+let tray = null;
+let quitting = false;
+let bar = { lesson: "FLUR", change: "", ride: "" };
+
+function clip(value, max) {
+  return String(value ?? "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, max);
+}
+
+function trayImage() {
+  const size = 22;
+  const buf = Buffer.alloc(size * size * 4);
+  const set = (x, y) => {
+    if (x < 0 || y < 0 || x >= size || y >= size) return;
+    const i = (y * size + x) * 4;
+    buf[i] = 0;
+    buf[i + 1] = 0;
+    buf[i + 2] = 0;
+    buf[i + 3] = 255;
+  };
+  for (let y = 5; y < 18; y++) {
+    set(6, y);
+    set(7, y);
+    set(14, y);
+    set(15, y);
+  }
+  for (let x = 6; x <= 15; x++) {
+    set(x, 4);
+    set(x, 5);
+  }
+  set(10, 9);
+  set(10, 10);
+  set(10, 11);
+  set(11, 11);
+  set(12, 11);
+  const image = nativeImage.createFromBitmap(buf, { width: size, height: size, scaleFactor: 1 });
+  image.setTemplateImage(true);
+  return image;
+}
+
+function showWindow() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.show();
+  mainWindow.focus();
+}
+
+function refreshTray() {
+  if (!tray) return;
+  const title = [bar.lesson, bar.ride].filter(Boolean).join(" · ");
+  if (process.platform === "darwin") tray.setTitle(title ? ` ${title}` : "");
+  tray.setToolTip(["FLUR", bar.lesson, bar.change, bar.ride].filter(Boolean).join("\n"));
+  tray.setContextMenu(
+    Menu.buildFromTemplate([
+      { label: bar.lesson || "FLUR", enabled: false },
+      ...(bar.change ? [{ label: bar.change, enabled: false }] : []),
+      ...(bar.ride ? [{ label: bar.ride, enabled: false }] : []),
+      { type: "separator" },
+      { label: "FLUR öffnen", click: showWindow },
+      { type: "separator" },
+      {
+        label: "Beenden",
+        click: () => {
+          quitting = true;
+          app.quit();
+        },
+      },
+    ]),
+  );
+}
+
+function installTray() {
+  tray = new Tray(trayImage());
+  refreshTray();
+  ipcMain.on("flur-bar", (_event, payload) => {
+    bar = {
+      lesson: clip(payload?.lesson, 42) || "FLUR",
+      change: clip(payload?.change, 80),
+      ride: clip(payload?.ride, 42),
+    };
+    refreshTray();
+  });
+}
 
 function freePort() {
   return new Promise((resolve, reject) => {
@@ -96,10 +181,16 @@ async function createWindow() {
     backgroundColor: "#14110d",
     autoHideMenuBar: false,
     webPreferences: {
+      preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
     },
+  });
+  mainWindow.on("close", (event) => {
+    if (quitting) return;
+    event.preventDefault();
+    mainWindow.hide();
   });
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith("http://") || url.startsWith("https://")) void shell.openExternal(url);
@@ -161,12 +252,11 @@ if (!gotLock) {
   app.quit();
 } else {
   app.on("second-instance", () => {
-    if (!mainWindow) return;
-    if (mainWindow.isMinimized()) mainWindow.restore();
-    mainWindow.focus();
+    showWindow();
   });
   app.whenReady().then(async () => {
     installMenu();
+    installTray();
     try {
       await createWindow();
     } catch (error) {
@@ -175,9 +265,18 @@ if (!gotLock) {
       await fallback.loadURL("data:text/plain;charset=utf-8," + encodeURIComponent(message));
     }
   });
-  app.on("before-quit", stopServer);
-  app.on("window-all-closed", () => {
+  app.on("before-quit", () => {
+    quitting = true;
     stopServer();
-    app.quit();
+  });
+  app.on("window-all-closed", () => {
+    if (process.platform !== "darwin") {
+      quitting = true;
+      stopServer();
+      app.quit();
+    }
+  });
+  app.on("activate", () => {
+    showWindow();
   });
 }

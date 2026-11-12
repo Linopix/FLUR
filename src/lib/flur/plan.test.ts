@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { outboundAim, pickEarliest, pickTightest, returnAim, type TimedItinerary } from "./plan.ts";
+import { outboundAim, pickEarliest, pickJourney, pickTightest, returnAim, type TimedItinerary } from "./plan.ts";
 import type { DayBoard, Lesson } from "./types.ts";
 
 function lesson(partial: Pick<Lesson, "id" | "startMin" | "endMin" | "subject" | "status">): Lesson {
@@ -106,4 +106,12 @@ test("earliest return keeps a delayed train and skips a cancelled one", () => {
   };
   const chosen = pickEarliest([later, cancelled, delayed], Date.parse("2026-10-21T11:33:00.000Z"));
   assert.equal(chosen, delayed);
+});
+
+test("the faster door-to-door trip wins when both arrive in time", () => {
+  const slow = { leaveMs: 0, arriveMs: 50 * 60_000, misses: false };
+  const fast = { leaveMs: 5 * 60_000, arriveMs: 35 * 60_000, misses: false };
+  const late = { leaveMs: 0, arriveMs: 20 * 60_000, misses: true };
+  assert.equal(pickJourney([slow, late, fast], 40 * 60_000), fast);
+  assert.equal(pickJourney([late], null), late);
 });

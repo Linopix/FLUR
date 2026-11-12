@@ -1,5 +1,5 @@
 export type Who = "student" | "class" | "teacher";
-export type Mode = "bus" | "car" | "bike" | "walk";
+export type Mode = "bus" | "car" | "bike" | "walk" | "drive" | "link";
 export type LessonStatus = "regular" | "cancelled" | "substitution";
 
 export type Lesson = {
@@ -58,6 +58,7 @@ export type ServerProfile = {
   home: string;
   station: string;
   schoolStop: string;
+  schoolAddress: string;
   mode: Mode | "";
   who: Who | "";
   whoName: string;
@@ -84,6 +85,7 @@ export type Settings = {
   homeAddress: string;
   station: string;
   schoolStop: string;
+  schoolAddress: string;
   mode: Mode;
   kioskRotate: boolean;
   onboarded: boolean;
@@ -94,6 +96,17 @@ export const MODE_LABEL: Record<Mode, string> = {
   car: "Auto",
   bike: "Fahrrad",
   walk: "Zu Fuß",
+  drive: "Nur Auto",
+  link: "Anschluss",
+};
+
+export const MODE_HINT: Record<Mode, string> = {
+  link: "Vergleicht Bus, Rad und Fuß an beiden Enden und nimmt die kürzere Tür-zu-Tür-Zeit.",
+  bus: "Mit dem Bus zum Bahnhof, danach mit dem Zug.",
+  bike: "Mit dem Rad zum Bahnhof, danach mit dem Zug.",
+  walk: "Zu Fuß zum Bahnhof, danach mit dem Zug.",
+  car: "Mit dem Auto zum Bahnhof, danach mit dem Zug.",
+  drive: "Ganzer Weg mit dem Auto. Die Fahrzeit kommt aus dem Straßennetz, nicht aus einem Live-Stau.",
 };
 
 export const EXAMPLE_PLACES = {
@@ -101,3 +114,11 @@ export const EXAMPLE_PLACES = {
   station: "Köln Süd",
   schoolStop: "Köln Hbf",
 };
+
+declare global {
+  interface Window {
+    flurBar?: {
+      publish: (snapshot: { lesson: string; change: string; ride: string }) => void;
+    };
+  }
+}

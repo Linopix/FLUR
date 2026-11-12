@@ -1,7 +1,7 @@
 {
   "name": "flur",
   "productName": "FLUR",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "private": true,
   "description": "Stundenplan für den Mac. WebUntis, ohne die fehlende offizielle App.",
   "author": "Linopix",

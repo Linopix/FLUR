@@ -1,10 +1,10 @@
-import { Bike, Bus, Car, ChevronLeft, Footprints, QrCode, Search } from "lucide-react";
+import { Bike, Bus, Car, ChevronLeft, Footprints, QrCode, Route, Search } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { parseUntisAccess } from "@/lib/flur/access";
 import { filterDirectory, type DirectoryItem } from "@/lib/flur/directory";
 import { checkLogin, listDirectory, searchSchools } from "@/lib/flur/fns";
 import { hasRoute, hasUntis } from "@/lib/flur/settings";
-import { MODE_LABEL, type LoginKind, type Mode, type SchoolMatch, type ServerProfile, type Settings, type Who } from "@/lib/flur/types";
+import { MODE_HINT, MODE_LABEL, type LoginKind, type Mode, type SchoolMatch, type ServerProfile, type Settings, type Who } from "@/lib/flur/types";
 
 export type SetupStep = "welcome" | "school" | "who" | "login" | "route" | "done";
 
@@ -25,23 +25,28 @@ function placeLine(address: string): string {
 
 function ModePicker({ mode, onChange }: { mode: Mode; onChange: (mode: Mode) => void }) {
   const items: Array<{ id: Mode; label: string; icon: typeof Bus }> = [
+    { id: "link", label: "Anschluss", icon: Route },
     { id: "bus", label: "Bus", icon: Bus },
-    { id: "car", label: "Auto", icon: Car },
-    { id: "bike", label: "Fahrrad", icon: Bike },
-    { id: "walk", label: "Zu Fuß", icon: Footprints },
+    { id: "bike", label: "Rad", icon: Bike },
+    { id: "walk", label: "Fuß", icon: Footprints },
+    { id: "car", label: "Bahn+Auto", icon: Car },
+    { id: "drive", label: "Nur Auto", icon: Car },
   ];
   return (
-    <div className="apple-seg grid-cols-2" role="radiogroup" aria-label="Weg zum Bahnhof">
-      {items.map((item) => {
-        const Icon = item.icon;
-        const active = mode === item.id;
-        return (
-          <button key={item.id} type="button" role="radio" aria-checked={active} onClick={() => onChange(item.id)}>
-            <Icon className="size-4" aria-hidden="true" />
-            {item.label}
-          </button>
-        );
-      })}
+    <div className="space-y-2">
+      <div className="apple-seg grid-cols-3 [&>button]:px-2 [&>button]:text-[13px]" role="radiogroup" aria-label="Weg">
+        {items.map((item) => {
+          const Icon = item.icon;
+          const active = mode === item.id;
+          return (
+            <button key={item.id} type="button" role="radio" aria-checked={active} title={MODE_HINT[item.id]} onClick={() => onChange(item.id)}>
+              <Icon className="size-4 shrink-0" aria-hidden="true" />
+              {item.label}
+            </button>
+          );
+        })}
+      </div>
+      <p className="text-pretty text-sm text-mist">{MODE_HINT[mode]}</p>
     </div>
   );
 }
@@ -278,7 +283,9 @@ export function Setup({
       ? profile.school || "Über den Server"
       : "Beispieltag";
   const routeLabel = hasRoute(draft)
-    ? `${draft.station.trim()} · ${MODE_LABEL[draft.mode]}`
+    ? draft.mode === "drive"
+      ? `${draft.schoolAddress.trim() || draft.schoolStop.trim()} · ${MODE_LABEL.drive}`
+      : `${draft.station.trim() || "Bahnhof"} · ${MODE_LABEL[draft.mode]}`
     : profile?.station
       ? `${profile.station} · ${MODE_LABEL[(profile.mode || draft.mode) as Mode]}`
       : "Beispielweg";
@@ -739,8 +746,13 @@ export function Setup({
         {step === "route" ? (
           <>
             <h1 className="font-display text-4xl text-balance">Unterwegs</h1>
-            <p className="mt-3 text-pretty text-mist">Von zu Hause zum Bahnhof, dann zum Halt an der Schule.</p>
-            <div className="mt-6 space-y-3">
+            <p className="mt-3 text-pretty text-mist">
+              Anschluss sucht selbst die schnellste Kombination aus Bus, Rad und Fuß. Nur Auto fährt den ganzen Weg ohne Zug.
+            </p>
+            <div className="mt-5">
+              <ModePicker mode={draft.mode} onChange={(mode) => setDraft({ ...draft, mode })} />
+            </div>
+            <div className="mt-4 space-y-3">
               <Field label="Heimatadresse">
                 <input
                   className="flur-field"
@@ -750,25 +762,37 @@ export function Setup({
                   placeholder="Straße, Ort"
                 />
               </Field>
-              <Field label="Bahnhof">
-                <input
-                  className="flur-field"
-                  value={draft.station}
-                  onChange={(event) => setDraft({ ...draft, station: event.target.value })}
-                  placeholder="Köln Süd"
-                />
-              </Field>
-              <Field label="Halt an der Schule">
-                <input
-                  className="flur-field"
-                  value={draft.schoolStop}
-                  onChange={(event) => setDraft({ ...draft, schoolStop: event.target.value })}
-                  placeholder="Köln Hbf"
-                />
-              </Field>
-            </div>
-            <div className="mt-4">
-              <ModePicker mode={draft.mode} onChange={(mode) => setDraft({ ...draft, mode })} />
+              {draft.mode === "drive" ? null : (
+                <Field label="Bahnhof">
+                  <input
+                    className="flur-field"
+                    value={draft.station}
+                    onChange={(event) => setDraft({ ...draft, station: event.target.value })}
+                    placeholder="Bahnhof zu Hause"
+                  />
+                </Field>
+              )}
+              {draft.mode === "drive" ? null : (
+                <Field label="Halt an der Schule">
+                  <input
+                    className="flur-field"
+                    value={draft.schoolStop}
+                    onChange={(event) => setDraft({ ...draft, schoolStop: event.target.value })}
+                    placeholder="Bahnhof Traunstein"
+                  />
+                </Field>
+              )}
+              {draft.mode === "drive" || draft.mode === "link" ? (
+                <Field label={draft.mode === "drive" ? "Adresse der Schule" : "Adresse der Schule, falls der Halt nicht direkt davor ist"}>
+                  <input
+                    className="flur-field"
+                    value={draft.schoolAddress}
+                    onChange={(event) => setDraft({ ...draft, schoolAddress: event.target.value })}
+                    autoComplete="street-address"
+                    placeholder="Berufsschule, Straße, Ort"
+                  />
+                </Field>
+              ) : null}
             </div>
             <div className="mt-auto flex flex-col gap-3 pt-8">
               <button type="button" className="apple-btn w-full" onClick={() => go("done")}>

@@ -13,6 +13,7 @@ import {
   Footprints,
   Mail,
   Maximize2,
+  Route,
   Settings as SettingsIcon,
   Train,
 } from "lucide-react";
@@ -25,8 +26,21 @@ import { DEMO_LESSONS, lessonSpan } from "@/lib/flur/demo";
 import { daysBetween, downloadIcs, nextOpenDay, toIcs } from "@/lib/flur/desk";
 import { forgetProfile, loadProfiles, rememberProfile, type LocalProfile } from "@/lib/flur/profiles";
 import { hasRoute, hasUntis } from "@/lib/flur/settings";
-import { MODE_LABEL, type Lesson, type Mode, type TripLeg, type TripPlan } from "@/lib/flur/types";
+import { MODE_HINT, MODE_LABEL, type Lesson, type Mode, type TripLeg, type TripPlan } from "@/lib/flur/types";
 import { addDaysIso, berlinParts, formatClock, formatDay, formatInstant, formatMinutes } from "@/lib/flur/time";
+
+type BarSnapshot = { lesson: string; change: string; ride: string };
+
+let lastBar = "";
+
+function publishBar(snapshot: BarSnapshot) {
+  const bridge = typeof window === "undefined" ? undefined : window.flurBar;
+  if (!bridge) return;
+  const key = `${snapshot.lesson}\n${snapshot.change}\n${snapshot.ride}`;
+  if (key === lastBar) return;
+  lastBar = key;
+  bridge.publish(snapshot);
+}
 
 type View = "heute" | "woche" | "wege" | "schule" | "post" | "setup";
 type Leg = "hin" | "heim";
@@ -80,29 +94,35 @@ function heroClock(kind: "now" | "next" | "tomorrow", lesson: Lesson, minutes: n
 
 function ModeSwitch({ mode, onChange }: { mode: Mode; onChange: (mode: Mode) => void }) {
   const items: Array<{ id: Mode; label: string; icon: typeof Bus }> = [
+    { id: "link", label: "Anschluss", icon: Route },
     { id: "bus", label: "Bus", icon: Bus },
-    { id: "car", label: "Auto", icon: Car },
-    { id: "bike", label: "Fahrrad", icon: Bike },
-    { id: "walk", label: "Zu Fuß", icon: Footprints },
+    { id: "bike", label: "Rad", icon: Bike },
+    { id: "walk", label: "Fuß", icon: Footprints },
+    { id: "car", label: "Bahn+Auto", icon: Car },
+    { id: "drive", label: "Nur Auto", icon: Car },
   ];
   return (
-    <div className="apple-seg grid-cols-2 sm:grid-cols-4" role="radiogroup" aria-label="Weg zum Bahnhof">
-      {items.map((item) => {
-        const Icon = item.icon;
-        const active = mode === item.id;
-        return (
-          <button
-            key={item.id}
-            type="button"
-            role="radio"
-            aria-checked={active}
-            onClick={() => onChange(item.id)}
-          >
-            <Icon className="size-4" aria-hidden="true" />
-            {item.label}
-          </button>
-        );
-      })}
+    <div className="space-y-2">
+      <div className="apple-seg grid-cols-3 [&>button]:px-2 [&>button]:text-[13px]" role="radiogroup" aria-label="Weg">
+        {items.map((item) => {
+          const Icon = item.icon;
+          const active = mode === item.id;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              role="radio"
+              aria-checked={active}
+              title={MODE_HINT[item.id]}
+              onClick={() => onChange(item.id)}
+            >
+              <Icon className="size-4 shrink-0" aria-hidden="true" />
+              {item.label}
+            </button>
+          );
+        })}
+      </div>
+      <p className="text-pretty text-sm text-mist">{MODE_HINT[mode]}</p>
     </div>
   );
 }
@@ -173,6 +193,11 @@ function BreakRow({ minutes }: { minutes: number }) {
   );
 }
 
+function tripMark(trip: TripPlan): { label: string; good: boolean } {
+  if (trip.mode === "drive") return { label: "Fahrzeit", good: true };
+  return { label: trip.punctual ? "pünktlich" : "Verspätung", good: trip.punctual };
+}
+
 function legIcon(mode: TripLeg["mode"]) {
   if (mode === "rail") return Train;
   if (mode === "bus") return Bus;
@@ -184,6 +209,7 @@ function legIcon(mode: TripLeg["mode"]) {
 function TripBody({ trip }: { trip: TripPlan }) {
   const when = trip.direction === "hin" ? trip.leaveAt : trip.arriveAt;
   const whenLabel = trip.direction === "hin" ? "Losgehen" : "Zu Hause";
+  const mark = tripMark(trip);
   return (
     <>
       <div className="flex items-start justify-between gap-3">
@@ -194,10 +220,10 @@ function TripBody({ trip }: { trip: TripPlan }) {
         <span
           className={
             "shrink-0 rounded-full px-3 py-1 text-sm font-medium " +
-            (trip.punctual ? "bg-chalk text-chalk-ink" : "bg-rust text-ink")
+            (mark.good ? "bg-chalk text-chalk-ink" : "bg-rust text-ink")
           }
         >
-          {trip.punctual ? "pünktlich" : "Verspätung"}
+          {mark.label}
         </span>
       </div>
       <p className="mt-3 text-pretty text-base">{trip.headline}</p>
@@ -263,10 +289,10 @@ function TripCard({
         <span
           className={
             "shrink-0 rounded-full px-3 py-1 text-sm font-medium " +
-            (trip.punctual ? "bg-chalk text-chalk-ink" : "bg-rust text-ink")
+            (tripMark(trip).good ? "bg-chalk text-chalk-ink" : "bg-rust text-ink")
           }
         >
-          {trip.punctual ? "pünktlich" : "Verspätung"}
+          {tripMark(trip).label}
         </span>
       </div>
       <p className="mt-3 line-clamp-2 text-pretty text-sm text-mist">{trip.headline}</p>
@@ -393,6 +419,34 @@ export function Board() {
 
   const letter = digestText({ dateLabel, lessons, hin: flur.hin, heim: flur.heim });
 
+  useEffect(() => {
+    const lesson = focus
+      ? `${focus.lesson.subject} ${formatMinutes(focus.lesson.startMin)}–${formatMinutes(focus.lesson.endMin)}`
+      : later
+        ? `Unterricht ab ${formatDay(later.iso)}`
+        : "Frei";
+    const changed = changes.find((item) => item.status === "substitution") ?? changes.find((item) => item.status === "cancelled");
+    const change = !changed
+      ? ""
+      : changed.status === "cancelled"
+        ? `${changed.subject} entfällt`
+        : `Vertretung ${changed.subject}${changed.originalTeacher ? `: ${changed.teacher} statt ${changed.originalTeacher}` : changed.teacher ? `: ${changed.teacher}` : ""}`;
+    const rail = flur.hin?.legs.find((item) => item.mode === "rail");
+    const ride =
+      flur.route.mode === "drive" && flur.hin
+        ? `Auto ${formatInstant(flur.hin.leaveAt)}`
+        : rail
+          ? rail.cancelled
+            ? `${rail.title} fällt aus`
+            : rail.delayMin > 0
+              ? `${rail.title} +${rail.delayMin}`
+              : `${rail.title} pünktlich ${formatInstant(rail.departure)}`
+          : flur.tripLoading
+            ? "Zug wird geladen"
+            : "";
+    publishBar({ lesson, change, ride });
+  }, [changes, flur.hin, flur.route.mode, flur.tripLoading, focus, later]);
+
   async function copyLetter() {
     try {
       await navigator.clipboard.writeText(letter);
@@ -451,7 +505,9 @@ export function Board() {
         : "Beispieltag";
   const routeStatus =
     hasRoute(flur.settings) || !flur.exampleRoute
-      ? `${flur.route.station || "Bahnhof"} · ${MODE_LABEL[flur.route.mode]}`
+      ? flur.route.mode === "drive"
+        ? `${flur.route.schoolAddress || flur.route.schoolStop || "Schule"} · ${MODE_LABEL.drive}`
+        : `${flur.route.station || "Bahnhof"} · ${MODE_LABEL[flur.route.mode]}`
       : "Beispielweg";
 
   if (!flur.hydrated) {
@@ -710,9 +766,17 @@ export function Board() {
               <div>
                 <h2 className="font-display text-4xl">{leg === "hin" ? "Hinweg" : "Heimweg"}</h2>
                 <p className="mt-2 max-w-xl text-pretty text-mist">
-                  {leg === "hin"
-                    ? "So knapp wie möglich zur ersten Stunde, die nicht ausfällt. Danach noch der Weg ins Schulhaus."
-                    : "Erst der Weg vom Schulhaus zur Haltestelle, dann die früheste Zugverbindung."}
+                  {flur.route.mode === "drive"
+                    ? leg === "hin"
+                      ? "Der ganze Weg mit dem Auto, rechtzeitig zur ersten Stunde. Gezeigt wird die Fahrzeit im Straßennetz, nicht der Live-Stau."
+                      : "Nach der letzten Stunde direkt nach Hause. Dieselbe Fahrzeit aus dem Straßennetz, ohne Live-Stau."
+                    : flur.route.mode === "link"
+                      ? leg === "hin"
+                        ? "Bus, Rad und Fuß werden an beiden Enden verglichen. Die kürzere Tür-zu-Tür-Zeit gewinnt, wenn sie noch rechtzeitig ankommt."
+                        : "Vom Schulhaus zum Halt und vom Bahnhof nach Hause wird wieder die kürzere Kombination genommen."
+                      : leg === "hin"
+                        ? "So knapp wie möglich zur ersten Stunde, die nicht ausfällt. Danach noch der Weg ins Schulhaus."
+                        : "Erst der Weg vom Schulhaus zur Haltestelle, dann die früheste Zugverbindung."}
                 </p>
               </div>
               <div className="grid grid-cols-2 gap-2" role="tablist" aria-label="Richtung">

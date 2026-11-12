@@ -60,12 +60,17 @@ export function useFlur() {
       homeAddress: settings.homeAddress.trim() || profile?.home || "",
       station: settings.station.trim() || profile?.station || "",
       schoolStop: settings.schoolStop.trim() || profile?.schoolStop || "",
+      schoolAddress: settings.schoolAddress.trim() || profile?.schoolAddress || "",
       mode,
     };
-  }, [profile, settings.homeAddress, settings.mode, settings.schoolStop, settings.station]);
+  }, [profile, settings.homeAddress, settings.mode, settings.schoolAddress, settings.schoolStop, settings.station]);
 
   const exampleRoute =
-    hydrated && !route.homeAddress.trim() && !route.station.trim() && !route.schoolStop.trim();
+    hydrated &&
+    !route.homeAddress.trim() &&
+    !route.station.trim() &&
+    !route.schoolStop.trim() &&
+    !route.schoolAddress.trim();
 
   useEffect(() => {
     if (!hydrated) return;
@@ -218,6 +223,7 @@ export function useFlur() {
               homeAddress: route.homeAddress,
               station: route.station,
               schoolStop: route.schoolStop,
+              schoolAddress: route.schoolAddress,
               mode: route.mode,
               direction: "hin",
               departAt: stamp.toISOString(),
@@ -232,6 +238,7 @@ export function useFlur() {
               homeAddress: route.homeAddress,
               station: route.station,
               schoolStop: route.schoolStop,
+              schoolAddress: route.schoolAddress,
               mode: route.mode,
               direction: "heim",
               departAt: back.departAt,
@@ -265,7 +272,7 @@ export function useFlur() {
       cancelled = true;
       window.clearInterval(id);
     };
-  }, [clockReady, exampleRoute, hydrated, route.homeAddress, route.mode, route.schoolStop, route.station, today, tomorrow]);
+  }, [clockReady, exampleRoute, hydrated, route.homeAddress, route.mode, route.schoolAddress, route.schoolStop, route.station, today, tomorrow]);
 
   const setSettings = useCallback((next: Settings) => {
     setSettingsState(next);

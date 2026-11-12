@@ -1,5 +1,5 @@
 import { addDaysIso, berlinParts, formatMinutes } from "./time.ts";
-import { EXAMPLE_PLACES, MODE_LABEL, type DayBoard, type Lesson, type Mode, type TripPlan } from "./types.ts";
+import { EXAMPLE_PLACES, MODE_LABEL, type DayBoard, type Lesson, type Mode, type TripLeg, type TripPlan } from "./types.ts";
 
 const PERIODS: Array<Omit<Lesson, "id">> = [
   {
@@ -83,13 +83,151 @@ function isoIn(minutesFromNow: number, now: Date): string {
   return new Date(now.getTime() + minutesFromNow * 60_000).toISOString();
 }
 
+function legMode(mode: Mode): TripLeg["mode"] {
+  if (mode === "bus") return "bus";
+  if (mode === "car" || mode === "drive") return "car";
+  if (mode === "bike") return "bike";
+  return "walk";
+}
+
 export function demoTrip(direction: "hin" | "heim", mode: Mode, now = new Date()): TripPlan {
-  const access = mode === "car" ? 8 : mode === "bike" ? 11 : mode === "walk" ? 22 : 16;
   const places = {
     home: "Pantaleonswall",
     station: EXAMPLE_PLACES.station,
     schoolStop: EXAMPLE_PLACES.schoolStop,
   };
+  if (mode === "drive") {
+    const leave = direction === "hin" ? 22 : 6;
+    const arrive = leave + 28;
+    return {
+      source: "demo",
+      direction,
+      mode,
+      punctual: true,
+      leaveAt: isoIn(leave, now),
+      arriveAt: isoIn(arrive, now),
+      headline: "Auto direkt · 12 km",
+      note: "Beispiel. Ganzer Weg mit dem Auto. Die Fahrzeit kommt aus dem Straßennetz, nicht aus einem Live-Stau.",
+      places: { ...places, station: "" },
+      legs: [
+        {
+          mode: "car",
+          title: "Auto · 12 km",
+          from: direction === "hin" ? places.home : "Schule",
+          to: direction === "hin" ? "Schule" : "zu Hause",
+          departure: isoIn(leave, now),
+          arrival: isoIn(arrive, now),
+          delayMin: 0,
+          punctual: true,
+          cancelled: false,
+          platform: "",
+        },
+      ],
+    };
+  }
+  if (mode === "link") {
+    if (direction === "hin") {
+      return {
+        source: "demo",
+        direction,
+        mode,
+        punctual: true,
+        leaveAt: isoIn(16, now),
+        arriveAt: isoIn(52, now),
+        headline: "Automatisch Bus und Bus, RB 24 pünktlich.",
+        note: "Beispiel. Anschluss vergleicht Bus, Rad und Fuß an beiden Enden. Hier ist Bus plus Bus kürzer als Rad plus Fuß.",
+        places,
+        legs: [
+          {
+            mode: "bus",
+            title: "Bus 132",
+            from: places.home,
+            to: places.station,
+            departure: isoIn(16, now),
+            arrival: isoIn(28, now),
+            delayMin: 0,
+            punctual: true,
+            cancelled: false,
+            platform: "",
+          },
+          {
+            mode: "rail",
+            title: "RB 24",
+            from: places.station,
+            to: places.schoolStop,
+            departure: isoIn(33, now),
+            arrival: isoIn(42, now),
+            delayMin: 0,
+            punctual: true,
+            cancelled: false,
+            platform: "3",
+          },
+          {
+            mode: "bus",
+            title: "Bus 5",
+            from: places.schoolStop,
+            to: "Schule",
+            departure: isoIn(44, now),
+            arrival: isoIn(52, now),
+            delayMin: 0,
+            punctual: true,
+            cancelled: false,
+            platform: "",
+          },
+        ],
+      };
+    }
+    return {
+      source: "demo",
+      direction,
+      mode,
+      punctual: true,
+      leaveAt: isoIn(8, now),
+      arriveAt: isoIn(43, now),
+      headline: "Automatisch Bus und Fuß, RB 48 pünktlich.",
+      note: "Beispiel. Auf dem Rückweg gewinnt Bus zum Halt und zu Fuß nach Hause.",
+      places,
+      legs: [
+        {
+          mode: "bus",
+          title: "Bus 5",
+          from: "Schule",
+          to: places.schoolStop,
+          departure: isoIn(8, now),
+          arrival: isoIn(16, now),
+          delayMin: 0,
+          punctual: true,
+          cancelled: false,
+          platform: "",
+        },
+        {
+          mode: "rail",
+          title: "RB 48",
+          from: places.schoolStop,
+          to: places.station,
+          departure: isoIn(18, now),
+          arrival: isoIn(28, now),
+          delayMin: 0,
+          punctual: true,
+          cancelled: false,
+          platform: "6",
+        },
+        {
+          mode: "walk",
+          title: "Zu Fuß",
+          from: places.station,
+          to: "zu Hause",
+          departure: isoIn(28, now),
+          arrival: isoIn(43, now),
+          delayMin: 0,
+          punctual: true,
+          cancelled: false,
+          platform: "",
+        },
+      ],
+    };
+  }
+  const access = mode === "car" ? 8 : mode === "bike" ? 11 : mode === "walk" ? 22 : 16;
   if (direction === "hin") {
     const leave = 18;
     const trainDep = leave + access + 5;
@@ -106,7 +244,7 @@ export function demoTrip(direction: "hin" | "heim", mode: Mode, now = new Date()
       places,
       legs: [
         {
-          mode: mode === "bus" ? "bus" : mode,
+          mode: legMode(mode),
           title: mode === "bus" ? "Bus 132" : MODE_LABEL[mode],
           from: places.home,
           to: places.station,
@@ -159,7 +297,7 @@ export function demoTrip(direction: "hin" | "heim", mode: Mode, now = new Date()
         platform: "6",
       },
       {
-        mode: mode === "bus" ? "bus" : mode,
+        mode: legMode(mode),
         title: mode === "bus" ? "Bus 132" : MODE_LABEL[mode],
         from: places.station,
         to: "zu Hause",

@@ -39,8 +39,12 @@ export function WatchFace() {
           )}
         </div>
         <div className="mt-5 border-t border-separator pt-5">
-          <p className="text-sm font-semibold text-secondary">Nächster Zug</p>
-          {train ? (
+          <p className="text-sm font-semibold text-secondary">{flur.hin?.mode === "drive" ? "Abfahrt Auto" : "Nächster Zug"}</p>
+          {flur.hin?.mode === "drive" ? (
+            <p className="mt-1 text-lg font-semibold tracking-tight">
+              Auto · {formatInstant(flur.hin.leaveAt)} · Fahrzeit
+            </p>
+          ) : train ? (
             <p className="mt-1 text-lg font-semibold tracking-tight">
               {train.title} · {formatInstant(train.departure)}
               {flur.hin?.punctual ? "" : " · verspätet"}

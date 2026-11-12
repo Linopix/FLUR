@@ -15,6 +15,7 @@ export function emptySettings(): Settings {
     homeAddress: "",
     station: "",
     schoolStop: "",
+    schoolAddress: "",
     mode: "bike",
     kioskRotate: false,
     onboarded: false,
@@ -30,7 +31,14 @@ function asLogin(value: unknown): LoginKind {
 }
 
 function asMode(value: unknown): Mode {
-  return value === "bus" || value === "car" || value === "bike" || value === "walk" ? value : "bike";
+  return value === "bus" ||
+    value === "car" ||
+    value === "bike" ||
+    value === "walk" ||
+    value === "drive" ||
+    value === "link"
+    ? value
+    : "bike";
 }
 
 export function loadSettings(): Settings {
@@ -46,6 +54,7 @@ export function loadSettings(): Settings {
       mode: asMode(parsed.mode),
       login: asLogin(parsed.login),
       schoolLabel: typeof parsed.schoolLabel === "string" ? parsed.schoolLabel : "",
+      schoolAddress: typeof parsed.schoolAddress === "string" ? parsed.schoolAddress : "",
       kioskRotate: Boolean(parsed.kioskRotate),
       password: typeof parsed.password === "string" ? parsed.password : "",
       onboarded: parsed.onboarded === true,
@@ -73,5 +82,7 @@ export function hasUntis(settings: Settings): boolean {
 }
 
 export function hasRoute(settings: Settings): boolean {
-  return Boolean(settings.homeAddress.trim() && settings.station.trim() && settings.schoolStop.trim());
+  if (!settings.homeAddress.trim()) return false;
+  if (settings.mode === "drive") return Boolean(settings.schoolAddress.trim() || settings.schoolStop.trim());
+  return Boolean(settings.station.trim() && settings.schoolStop.trim());
 }

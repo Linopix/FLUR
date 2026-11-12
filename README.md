@@ -19,7 +19,7 @@ Eine offizielle Untis-App für den Mac gibt es nicht. FLUR ist der Ersatz: diese
 | Mehrere Kinder | Bis zu sechs Konten, nur auf diesem Gerät. |
 | Kalender | Stunden und Prüfungen als Kalenderdatei. |
 | Offline | Der letzte erfolgreiche Abruf bleibt auf dem Gerät. |
-| Schulweg | Hinweg und Heimweg, Bus, Auto, Fahrrad, zu Fuß. |
+| Schulweg | Hinweg und Heimweg. Anschluss vergleicht Bus, Rad und Fuß an beiden Enden. Bahn+Auto fährt nur zum Bahnhof. Nur Auto fährt den ganzen Weg. |
 | Flur-Bildschirm | Automatischer Wechsel zwischen Heute, Hinweg und Heimweg. |
 
 Die Morgenpost bleibt unter Mehr: ein Text zum Kopieren. Automatischer Versand braucht ein Postfach und ist nicht angeschlossen.
@@ -34,6 +34,8 @@ Untis Mobile spricht mit einer anderen, nicht öffentlichen Schnittstelle. Ohne 
 - **Noten.**
 - **Freie Räume** für die ganze Schule.
 - **Klassenbuch schreiben**, Entschuldigungen einreichen, Krankmeldungen abschicken.
+- **Live-Stau.** Öffentliche Kartendienste ohne Schlüssel kennen die Straßenzeit, nicht die aktuelle Schlange. Nur Auto zeigt deshalb „Fahrzeit“, nicht „Stau“.
+- **Mitteilungszentrale-Widgets** auf dem Mac. Die brauchen eine signierte App aus Xcode. Stattdessen liegt ein Symbol in der Menüleiste: Stunde, Vertretung und Zugverspätung, ohne das Fenster zu öffnen.
 
 Fehlt einer Schule das Recht für Prüfungen, Hausaufgaben oder Fehlzeiten, bleibt der Stundenplan stehen. Die betroffene Karte sagt das in einem Satz.
 
@@ -44,7 +46,7 @@ Beim ersten Öffnen fragt FLUR der Reihe nach:
 1. **Schule.** Name oder Ort tippen. Die Adresse des Servers wird nicht mehr von Hand eingetragen.
 2. **Anmeldung.** Entweder das WebUntis-Passwort oder Schul-Login.
 3. **Für wen.** Ich, eine Klasse oder eine Lehrkraft. Klasse und Kürzel lassen sich suchen.
-4. **Weg.** Zuhause, Bahnhof, Halt an der Schule, Verkehrsmittel. Wer will, überspringt das und behält den Beispielweg.
+4. **Weg.** Verkehrsmittel, Zuhause, Bahnhof, Halt an der Schule. Anschluss und Nur Auto fragen zusätzlich nach der Adresse der Schule, wenn der Halt nicht direkt davor liegt. Wer will, überspringt das und behält den Beispielweg.
 
 **Beispiel ansehen** zeigt einen fertigen Tag, ohne etwas zu speichern, was schon da war.
 
@@ -76,6 +78,10 @@ Es gibt keine signierte App-Store-Version. Die Ausgabe auf GitHub ist eine App f
 
 Die App spricht nur mit der Schule und mit dem Fahrplandienst. Sie enthält keinen eigenen Account.
 
+Oben in der Menüleiste bleibt ein FLUR-Symbol, auch wenn das Fenster zu ist. Daneben stehen die laufende oder nächste Stunde und der nächste Zug, zum Beispiel `Mathe 08:15–09:00 · RB 24 +6`. Ein Klick auf das Symbol zeigt Vertretung oder Entfall und öffnet die Tafel. Beenden geht über dasselbe Menü, nicht über das Schließen des Fensters.
+
+Ein Widget in der Mitteilungszentrale gibt es nicht. Dafür müsste die App auf einem Mac signiert und von Apple notarisiert werden. Das geht aus dieser Ausgabe nicht.
+
 ## Docker
 
 ```bash
@@ -104,10 +110,13 @@ Ohne `flur.env` läuft die Tafel mit einem Beispieltag und einer live gerechnete
 | `FLUR_WEBUNTIS_NAME` | Klasse oder Kürzel, nur wenn nicht `student` |
 | `FLUR_HOME` | Heimatadresse |
 | `FLUR_STATION` | Bahnhof für die Abfahrt |
-| `FLUR_SCHOOL_STOP` | Halt an der Schule |
-| `FLUR_MODE` | `bus`, `car`, `bike` oder `walk` |
+| `FLUR_SCHOOL_STOP` | Halt an der Schule, zum Beispiel Bahnhof Traunstein |
+| `FLUR_SCHOOL_ADDRESS` | Straße der Schule, nur für Anschluss und Nur Auto |
+| `FLUR_MODE` | `link`, `bus`, `bike`, `walk`, `car` oder `drive` |
 
 Zugdaten kommen über [Transitous](https://transitous.org) (Fahrplandaten, unter anderem DB). Der Hinweg sucht die späteste Verbindung, die noch vor der ersten nicht ausgefallenen Stunde ankommt, mit acht Minuten für den Weg vom Halt ins Schulhaus. Der Heimweg rechnet dieselben acht Minuten vom Schulhaus zur Haltestelle und nimmt danach die früheste Zugverbindung. Wege zu Fuß, mit dem Rad und mit dem Auto über den öffentlichen OSRM-Dienst. „Pünktlich“ heißt: keine Ausfallmeldung und höchstens zwei Minuten Abweichung vom Fahrplan.
+
+**Anschluss** rechnet an beiden Enden Bus, Rad und zu Fuß, nimmt bis zu zwei passende Züge und behält die kürzere Tür-zu-Tür-Zeit, sofern sie noch vor der Stunde ankommt. Liegt eine Schuladresse vor, vergleicht das letzte Stück Bus und Fußweg bis vor die Tür, sonst bleiben es acht Minuten ins Schulhaus. **Nur Auto** fährt von zu Hause direkt zur Schuladresse, ohne Zug. Die Minute ist die Straßenzeit, nicht der Live-Stau. **Bahn+Auto** bleibt der alte Weg: Auto nur bis zum Bahnhof, danach Zug.
 
 ## Schon da, später richtig
 
